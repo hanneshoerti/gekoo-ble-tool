@@ -1,0 +1,831 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0f1419">
+<title>Gekoo Controller</title>
+<style>
+  :root {
+    --bg: #0f1419; --panel: #171e26; --panel2: #1e2731; --line: #2a3542;
+    --text: #e6edf3; --muted: #8b98a5; --accent: #3fb6a8; --accent-ink: #062320;
+    --warn: #e3a83c; --bad: #e5534b; --ok: #57ab5a; --chg: #2b3d55;
+    --mono: ui-monospace, "SF Mono", "Roboto Mono", Menlo, monospace;
+  }
+  @media (prefers-color-scheme: light) {
+    :root { --bg: #f4f6f8; --panel: #fff; --panel2: #eef1f4; --line: #d6dce2; --text: #17202a;
+            --muted: #5b6875; --accent: #12796e; --accent-ink: #fff; --chg: #dbe8f8; }
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--text);
+    font: 16px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  header { position: sticky; top: 0; z-index: 5; background: var(--bg); border-bottom: 1px solid var(--line);
+    padding: 12px 16px 0; }
+  .top { display: flex; align-items: center; gap: 12px; }
+  h1 { font-size: 17px; margin: 0; flex: 1; letter-spacing: .2px; white-space: nowrap; }
+  #connInfo { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+  .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--muted); display: inline-block; margin-right: 6px; }
+  .dot.on { background: var(--ok); box-shadow: 0 0 0 3px color-mix(in srgb, var(--ok) 25%, transparent); }
+  #connInfo { font-size: 13px; color: var(--muted); white-space: nowrap; }
+  button { font: inherit; border: 1px solid var(--line); background: var(--panel2); color: var(--text);
+    border-radius: 10px; padding: 10px 14px; cursor: pointer; min-height: 44px; }
+  button.primary { background: var(--accent); color: var(--accent-ink); border-color: transparent; font-weight: 600; }
+  button.danger { background: var(--bad); color: #fff; border-color: transparent; font-weight: 600; }
+  button:disabled { opacity: .45; cursor: not-allowed; }
+  nav { display: flex; gap: 4px; margin-top: 10px; overflow-x: auto; }
+  nav button { border: 0; background: none; border-radius: 0; border-bottom: 2px solid transparent;
+    color: var(--muted); padding: 10px 12px; min-height: 0; }
+  nav button[aria-selected="true"] { color: var(--text); border-bottom-color: var(--accent); }
+  main { padding: 16px; max-width: 900px; margin: 0 auto 120px; }
+  section[hidden] { display: none; }
+  .note { background: var(--panel); border: 1px solid var(--line); border-left: 3px solid var(--warn);
+    border-radius: 10px; padding: 12px 14px; font-size: 14px; color: var(--muted); margin-bottom: 14px; }
+  .note b { color: var(--text); }
+
+  /* Live */
+  .gauge-card, .tank { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; margin-bottom: 12px; }
+  .gauge-card { padding: 10px 12px 14px; }
+  #speedo { width: 100%; max-width: 380px; display: block; margin: 0 auto; }
+  .arc-bg { fill: none; stroke: var(--panel2); stroke-width: 14; stroke-linecap: round; }
+  .arc-val { fill: none; stroke: var(--accent); stroke-width: 14; stroke-linecap: round; transition: stroke-dasharray .15s linear; }
+  .tick { stroke: var(--muted); stroke-width: 1.5; }
+  .tick.major { stroke: var(--text); stroke-width: 2.5; }
+  .tick.limit { stroke: var(--bad); stroke-width: 4; }
+  .tick-label { fill: var(--muted); font: 13px system-ui, sans-serif; text-anchor: middle; dominant-baseline: middle; }
+  #needle { transform-box: view-box; transform-origin: 150px 150px; transition: transform .15s linear; }
+  #needle line { stroke: var(--bad); stroke-width: 3.5; stroke-linecap: round; }
+  .hub { fill: var(--text); }
+  .speed-num { fill: var(--text); font: 600 50px var(--mono); text-anchor: middle; font-variant-numeric: tabular-nums; }
+  .speed-unit { fill: var(--muted); font: 14px system-ui, sans-serif; text-anchor: middle; }
+  .gauge-foot { display: flex; justify-content: space-between; align-items: center; padding: 0 6px; color: var(--muted); font-size: 14px; }
+  .gauge-foot b { color: var(--text); font: 600 18px var(--mono); font-variant-numeric: tabular-nums; }
+  .gears { display: flex; gap: 4px; }
+  .gears span { font: 700 16px var(--mono); padding: 4px 11px; border-radius: 8px; background: var(--panel2); color: var(--muted); }
+  .gears span.on { background: var(--accent); color: var(--accent-ink); }
+  .tank { padding: 12px 14px; }
+  .tank-head, .tank-foot { display: flex; justify-content: space-between; align-items: baseline; }
+  .tank-head span:first-child { color: var(--muted); font-size: 13px; }
+  .tank-head b { font: 600 26px var(--mono); font-variant-numeric: tabular-nums; }
+  .tank-foot { color: var(--muted); font-size: 13px; margin-top: 6px; font-variant-numeric: tabular-nums; }
+  .tank-bar { display: grid; grid-template-columns: repeat(10, 1fr); gap: 4px; margin-top: 6px; }
+  .tank-bar i { height: 22px; border-radius: 4px; background: var(--panel2); transition: background .3s; }
+  .tank-bar.ok i.on { background: var(--ok); }
+  .tank-bar.warn i.on { background: var(--warn); }
+  .tank-bar.bad i.on { background: var(--bad); }
+  .tiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+  .tile { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; }
+  .tile .k { font-size: 13px; color: var(--muted); }
+  .tile .v { font: 600 24px/1.2 var(--mono); font-variant-numeric: tabular-nums; margin-top: 2px; }
+  .tile .v small { font: 14px system-ui; color: var(--muted); margin-left: 3px; }
+  .tile.bad .v { color: var(--bad); }
+  .tile.warn .v { color: var(--warn); }
+  .meter { height: 6px; border-radius: 3px; background: var(--panel2); margin-top: 8px; overflow: hidden; }
+  .meter i { display: block; height: 100%; width: 0; border-radius: 3px; background: var(--accent); transition: width .15s linear; }
+  .meter.warn i { background: var(--warn); }
+  .meter.bad i { background: var(--bad); }
+  .meter-cap { display: flex; justify-content: space-between; font-size: 11px; color: var(--muted); margin-top: 3px; font-variant-numeric: tabular-nums; }
+
+  /* Parameter */
+  .bar { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin-bottom: 14px; }
+  .bar .grow { flex: 1; }
+  details.group { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; margin-bottom: 10px; }
+  details.group > summary { padding: 12px 14px; font-weight: 600; cursor: pointer; list-style: none; display: flex; }
+  details.group > summary::after { content: "▾"; margin-left: auto; color: var(--muted); }
+  details.group:not([open]) > summary::after { content: "▸"; }
+  .prm { display: grid; grid-template-columns: 1fr 130px; gap: 4px 12px; padding: 10px 14px; border-top: 1px solid var(--line); }
+  .prm.changed { background: var(--chg); }
+  .prm .name { font-weight: 500; }
+  .prm .help { grid-column: 1 / -1; font-size: 13px; color: var(--muted); }
+  .prm .meta { font-size: 12px; color: var(--muted); }
+  .badge { font-size: 11px; padding: 1px 6px; border-radius: 6px; border: 1px solid var(--line); margin-left: 6px; vertical-align: 1px; }
+
+  .inp { display: flex; align-items: center; gap: 6px; justify-self: end; }
+  .inp input { width: 92px; font: 16px var(--mono); text-align: right; padding: 8px; border-radius: 8px;
+    border: 1px solid var(--line); background: var(--bg); color: var(--text); }
+  .inp input:disabled { opacity: .6; }
+  .inp input.invalid { border-color: var(--bad); }
+  .inp .u { font-size: 13px; color: var(--muted); width: 28px; }
+  .hint { grid-column: 1 / -1; font-size: 13px; color: var(--accent); }
+  .err { grid-column: 1 / -1; font-size: 13px; color: var(--bad); }
+  label.switch { display: inline-flex; align-items: center; gap: 8px; font-size: 14px; color: var(--muted); }
+  .savebar { position: fixed; left: 0; right: 0; bottom: 0; background: var(--panel); border-top: 1px solid var(--line);
+    padding: 12px 16px calc(12px + env(safe-area-inset-bottom)); display: flex; gap: 10px; align-items: center; z-index: 6; }
+  .savebar[hidden] { display: none; }
+  .savebar .grow { flex: 1; font-size: 14px; color: var(--muted); }
+
+  /* Dialog */
+  dialog { border: 1px solid var(--line); border-radius: 14px; background: var(--panel); color: var(--text);
+    width: min(560px, calc(100vw - 32px)); padding: 0; }
+  dialog::backdrop { background: rgb(0 0 0 / .55); }
+  .dlg { padding: 18px; }
+  .dlg h2 { margin: 0 0 10px; font-size: 18px; }
+  table { width: 100%; border-collapse: collapse; font-size: 14px; }
+  td, th { text-align: left; padding: 6px 4px; border-bottom: 1px solid var(--line); }
+  td.n { font-family: var(--mono); text-align: right; white-space: nowrap; }
+  .warnlist { margin: 10px 0; padding-left: 18px; color: var(--warn); font-size: 14px; }
+  .dlg .actions { display: flex; gap: 10px; justify-content: flex-end; margin-top: 16px; flex-wrap: wrap; }
+  .dlg label { display: flex; gap: 10px; align-items: flex-start; font-size: 14px; margin-top: 12px; }
+  .dlg input[type=checkbox] { width: 20px; height: 20px; margin-top: 1px; flex: none; }
+
+  /* Settings / Log */
+  .form { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 4px 14px; margin-bottom: 14px; }
+  .form .row { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+  .form .row:last-child { border-bottom: 0; }
+  .form .row span { flex: 1; }
+  .form .row small { display: block; color: var(--muted); font-size: 13px; }
+  .form input { width: 100px; font: 16px var(--mono); text-align: right; padding: 8px; border-radius: 8px;
+    border: 1px solid var(--line); background: var(--bg); color: var(--text); }
+  #log { font: 12px/1.5 var(--mono); background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
+    padding: 10px; height: 55vh; overflow: auto; white-space: pre; }
+  .toast { position: fixed; left: 50%; top: 16px; transform: translateX(-50%); background: var(--panel2);
+    border: 1px solid var(--line); padding: 10px 16px; border-radius: 10px; z-index: 20; max-width: calc(100vw - 32px);
+    box-shadow: 0 6px 24px rgb(0 0 0 / .3); }
+  .toast.bad { border-color: var(--bad); }
+  .toast.ok { border-color: var(--ok); }
+</style>
+</head>
+<body>
+<header>
+  <div class="top">
+    <h1>Gekoo Controller</h1>
+    <span id="connInfo"><span class="dot" id="dot"></span><span id="connText">getrennt</span></span>
+    <button class="primary" id="connectBtn">Verbinden</button>
+  </div>
+  <nav role="tablist">
+    <button role="tab" data-tab="live" aria-selected="true">Live</button>
+    <button role="tab" data-tab="params" aria-selected="false">Parameter</button>
+    <button role="tab" data-tab="settings" aria-selected="false">Einstellungen</button>
+    <button role="tab" data-tab="log" aria-selected="false">Protokoll</button>
+  </nav>
+</header>
+
+<main>
+  <div class="note" id="noBt" hidden>
+    <b>Bluetooth wird in diesem Browser nicht unterstützt.</b> Öffne die Seite in Chrome auf Android oder am Computer.
+    Auf dem iPhone geht es nur mit einem Browser wie „Bluefy“. Zum Ausprobieren ohne Roller: <a href="#demo">Demo-Modus</a>.
+  </div>
+
+  <section id="tab-live">
+    <div class="gauge-card">
+      <svg id="speedo" viewBox="0 0 300 232" role="img" aria-label="Tacho">
+        <path class="arc-bg" id="arcBg" />
+        <path class="arc-val" id="arcVal" pathLength="100" stroke-dasharray="0 100" />
+        <g id="ticks"></g>
+        <g id="needle"><line x1="150" y1="166" x2="150" y2="44" /></g>
+        <circle class="hub" cx="150" cy="150" r="8" />
+        <text class="speed-num" id="kmh" x="150" y="206">–</text>
+        <text class="speed-unit" x="150" y="226">km/h</text>
+      </svg>
+      <div class="gauge-foot">
+        <span><b id="rpm">–</b> U/min</span>
+        <div class="gears" id="gear"><span data-g="L">L</span><span data-g="M">M</span><span data-g="H">H</span></div>
+      </div>
+    </div>
+    <div class="tank">
+      <div class="tank-head"><span>Akku (geschätzt)</span><span><b id="soc">–</b> %</span></div>
+      <div class="tank-bar ok" id="tankBar"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+      <div class="tank-foot"><span><span id="voltage">–</span> V</span><span id="cellV">– V/Zelle</span></div>
+    </div>
+    <div class="tiles">
+      <div class="tile" id="powerTile"><div class="k">Leistung</div><div class="v"><span id="power">–</span><small>W</small></div><div class="meter" id="powerMeter"><i></i></div><div class="meter-cap"><span id="powerPct">–</span><span id="powerMax"></span></div></div>
+      <div class="tile" id="batteryCurrentTile"><div class="k">Akkustrom</div><div class="v"><span id="batteryCurrent">–</span><small>A</small></div><div class="meter" id="batteryCurrentMeter"><i></i></div><div class="meter-cap"><span id="batteryCurrentPct">–</span><span id="batteryCurrentMax"></span></div></div>
+      <div class="tile" id="phaseCurrentTile"><div class="k">Phasenstrom</div><div class="v"><span id="phaseCurrent">–</span><small>A</small></div><div class="meter" id="phaseCurrentMeter"><i></i></div><div class="meter-cap"><span id="phaseCurrentPct">–</span><span id="phaseCurrentMax"></span></div></div>
+      <div class="tile" id="fieldWeakeningTile"><div class="k">Feldschwächung</div><div class="v"><span id="fieldWeakening">–</span><small>A</small></div><div class="meter" id="fieldWeakeningMeter"><i></i></div><div class="meter-cap"><span id="fieldWeakeningPct">–</span><span id="fieldWeakeningMax"></span></div></div>
+      <div class="tile" id="throttleVTile"><div class="k">Gasgriff</div><div class="v"><span id="throttleV">–</span><small>V</small></div><div class="meter" id="throttleVMeter"><i></i></div><div class="meter-cap"><span id="throttleVPct">–</span><span id="throttleVMax"></span></div></div>
+      <div class="tile" id="temperatureTile"><div class="k">Controller-Temperatur</div><div class="v"><span id="temperature">–</span><small>°C</small></div><div class="meter" id="temperatureMeter"><i></i></div><div class="meter-cap"><span id="temperaturePct">–</span><span id="temperatureMax"></span></div></div>
+      <div class="tile" id="aux12vTile"><div class="k">12-V-Bordnetz</div><div class="v"><span id="aux12v">–</span><small>V</small></div></div>
+      <div class="tile" id="errTile"><div class="k">Fehlercode</div><div class="v"><span id="errorCode">–</span></div></div>
+    </div>
+  </section>
+
+  <section id="tab-params" hidden>
+    <div class="note"><b>Vorsicht beim Schreiben.</b> Vor jedem Schreiben ein Backup herunterladen.
+      Unbekannte Rohwerte gibt es nur im Expertenmodus. Getestet mit einem Gekoo „ND72260“ an einem NIU M+.</div>
+    <div class="bar">
+      <button class="primary" id="readBtn" disabled>Vom Controller lesen</button>
+      <button id="backupBtn" disabled>Backup herunterladen</button>
+      <button id="restoreBtn">Backup laden</button>
+      <input type="file" id="restoreFile" accept="application/json,.json" hidden>
+      <span class="grow"></span>
+      <label class="switch"><input type="checkbox" id="expert"> Expertenmodus</label>
+    </div>
+    <div id="paramState" class="note" style="border-left-color:var(--line)">Noch keine Parameter gelesen.</div>
+    <div id="paramList"></div>
+  </section>
+
+  <section id="tab-settings" hidden>
+    <div class="form">
+      <div class="row"><span>Reifenumfang<small>Für die km/h-Berechnung. Kreidestrich, eine Radumdrehung, messen.</small></span>
+        <input type="number" id="tireCm" min="50" max="300" step="1"> cm</div>
+      <div class="row"><span>Tacho-Bezugsumfang<small>Mit diesem Umfang rechnet der NIU-Tacho bei Faktor 100. Aus deiner Messung: 97,1 cm.</small></span>
+        <input type="number" id="refCm" min="30" max="300" step="0.1"> cm</div>
+      <div class="row"><span>Akku-Zellen in Reihe<small>Für die Akkuanzeige (NIU 48 V = 13).</small></span>
+        <input type="number" id="cells" min="7" max="30" step="1"> S</div>
+      <div class="row"><span>Polpaare für Drehzahl<small>Wird beim Lesen der Parameter automatisch übernommen.</small></span>
+        <input type="number" id="polePairs" min="1" max="60" step="1"></div>
+      <div class="row"><span>Beim Start automatisch verbinden<small>In der Android-App immer, in Chrome nur mit schon erlaubten Geräten.</small></span>
+        <input type="checkbox" id="autoConnect" style="width:24px;height:24px"></div>
+      <div class="row"><span>Bei Abbruch neu verbinden<small>Zum Beispiel nach „Zündung aus und wieder an“.</small></span>
+        <input type="checkbox" id="autoReconnect" style="width:24px;height:24px"></div>
+      <div class="row"><span>Abfrage-Intervall<small>Wie oft Live-Daten geholt werden. Die Original-App nutzt 100 ms.</small></span>
+        <input type="number" id="pollMs" min="50" max="2000" step="10"> ms</div>
+    </div>
+    <div class="form" id="tachoBox">
+      <div class="row"><span>Tacho-Korrekturfaktor<small id="tachoInfo">–</small></span>
+        <button class="primary" id="tachoApply" disabled>Am Controller übernehmen</button></div>
+      <details style="padding:6px 0 10px">
+        <summary style="cursor:pointer;color:var(--muted);font-size:14px">Mit GPS nachkalibrieren</summary>
+        <p style="font-size:13px;color:var(--muted);margin:8px 0">Bei konstanter Fahrt ablesen, was der Tacho und eine GPS-App anzeigen.
+          Daraus wird der Bezugsumfang neu berechnet. Danach den Faktor übernehmen.</p>
+        <div class="row"><span>Tacho zeigt</span><input type="number" id="calTacho" min="1" max="200" step="1"> km/h</div>
+        <div class="row"><span>GPS zeigt</span><input type="number" id="calGps" min="1" max="200" step="1"> km/h</div>
+        <div class="row" style="border:0"><span></span><button id="calBtn">Bezugsumfang berechnen</button></div>
+      </details>
+    </div>
+    <div class="bar"><a id="demoLink" href="#demo"><button tabindex="-1">Demo-Modus starten</button></a></div>
+    <div class="note" style="border-left-color:var(--line)">Quellcode, Protokoll-Beschreibung und Lizenz (MIT): siehe README im Projektordner.
+      Diese App ist ein inoffizielles Community-Projekt und hat nichts mit dem Hersteller zu tun.</div>
+  </section>
+
+  <section id="tab-log" hidden>
+    <div class="bar"><label class="switch"><input type="checkbox" id="logLive"> Live-Frames mitschreiben</label>
+      <label class="switch"><input type="checkbox" id="logRaw"> Rohe Bluetooth-Pakete</label>
+      <span class="grow"></span><button id="logClear">Leeren</button><button id="logSave">Speichern</button></div>
+    <div id="log"></div>
+  </section>
+</main>
+
+<div class="savebar" id="savebar" hidden>
+  <span class="grow" id="saveInfo"></span>
+  <button id="discardBtn">Verwerfen</button>
+  <button class="primary" id="reviewBtn">Prüfen &amp; schreiben</button>
+</div>
+
+<dialog id="reviewDlg"><div class="dlg">
+  <h2>Änderungen schreiben?</h2>
+  <table><thead><tr><th>Parameter</th><th style="text-align:right">alt</th><th style="text-align:right">neu</th></tr></thead>
+    <tbody id="diffBody"></tbody></table>
+  <ul class="warnlist" id="warnList"></ul>
+  <label><input type="checkbox" id="safeChk"> Der Roller steht auf dem Hauptständer, das Hinterrad ist frei, und ich habe ein Backup.</label>
+  <div class="actions"><button id="cancelWrite">Abbrechen</button><button class="danger" id="confirmWrite" disabled>Schreiben</button></div>
+</div></dialog>
+
+<script src="android-bridge.js"></script>
+<script type="module">
+import { SERVICE_UUID, CHAR_UUID, CMD, CHUNK_DELAY_MS, FrameParser, decodeRealtime, wordsFromBlock,
+         checksumOk, buildWriteFrame, chunks, PARAMS, READ_ONLY, SCALE } from './gekoo.js';
+
+const $ = (id) => document.getElementById(id);
+const hex = (b) => [...b].map((x) => x.toString(16).padStart(2, '0')).join(' ');
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+// ---------- Einstellungen (nur Komfort, darf fehlen)
+// refCm: Umfang, mit dem der Tacho bei Faktor 100 rechnet (gemessen: 133 cm brauchte Faktor 137 → 97,1 cm)
+const settings = { tireCm: 133, refCm: 97.1, polePairs: 24, pollMs: 100, autoConnect: true, autoReconnect: true, cells: 13 };
+try { Object.assign(settings, JSON.parse(localStorage.getItem('gekoo-settings') || '{}')); } catch {}
+const saveSettings = () => { try { localStorage.setItem('gekoo-settings', JSON.stringify(settings)); } catch {} };
+for (const k of ['tireCm', 'refCm', 'cells', 'polePairs', 'pollMs']) {
+  $(k).value = settings[k];
+  $(k).addEventListener('change', () => {
+    const v = Number($(k).value);
+    if (v > 0) { settings[k] = v; saveSettings(); renderParams(); renderTacho(); buildSpeedo(); }
+  });
+}
+
+for (const k of ['autoConnect', 'autoReconnect']) {
+  $(k).checked = !!settings[k];
+  $(k).addEventListener('change', () => { settings[k] = $(k).checked; saveSettings(); });
+}
+
+// ---------- Tacho-Korrekturfaktor (Parameter-Wort 7) aus dem Reifenumfang
+const TACHO_WORD = 7;
+const tachoFactor = () => Math.round((100 * settings.tireCm) / settings.refCm);
+function renderTacho() {
+  const want = tachoFactor();
+  const have = original ? original[TACHO_WORD] : null;
+  let info = `Berechnet für ${settings.tireCm} cm: ${want}`;
+  if (have == null) info += ' · Wert am Controller noch nicht gelesen';
+  else if (have === want) info += ` · Controller hat ${have} ✓`;
+  else info += ` · Controller hat ${have}`;
+  $('tachoInfo').textContent = info;
+  $('tachoApply').disabled = !connected || have === want;
+  $('tachoApply').textContent = have == null ? 'Lesen & übernehmen' : 'Am Controller übernehmen';
+}
+
+// ---------- Tabs
+document.querySelectorAll('nav button').forEach((b) => b.addEventListener('click', () => {
+  document.querySelectorAll('nav button').forEach((x) => x.setAttribute('aria-selected', x === b));
+  document.querySelectorAll('main > section').forEach((s) => (s.hidden = s.id !== 'tab-' + b.dataset.tab));
+}));
+
+// ---------- Meldungen & Log
+let toastTimer;
+function toast(msg, kind = '') {
+  document.querySelector('.toast')?.remove();
+  const t = Object.assign(document.createElement('div'), { className: 'toast ' + kind, textContent: msg });
+  document.body.append(t); clearTimeout(toastTimer); toastTimer = setTimeout(() => t.remove(), 4000);
+}
+const logLines = [];
+function log(dir, bytes, note = '') {
+  const t = new Date().toISOString().slice(11, 23);
+  logLines.push(`${t} ${dir} ${hex(bytes)}${note ? '  ← ' + note : ''}`);
+  if (logLines.length > 3000) logLines.splice(0, 1000);
+  if (!$('tab-log').hidden) { $('log').textContent = logLines.slice(-400).join('\n'); $('log').scrollTop = 1e9; }
+}
+$('logClear').onclick = () => { logLines.length = 0; $('log').textContent = ''; };
+$('logSave').onclick = () => download(`gekoo-log-${Date.now()}.txt`, logLines.join('\n'), 'text/plain');
+
+// ---------- Bluetooth
+let device, chr, connected = false, polling = false, pollLoopRunning = false;
+let waiter = null;
+let badFrames = 0;
+let gattQueue = Promise.resolve();
+const parser = new FrameParser(onFrame);
+
+if (location.hash === '#demo') {
+  const { installMockBluetooth } = await import('./mock-device.js');
+  installMockBluetooth(window);
+  toast('Demo-Modus: simulierter Controller mit echten Messdaten');
+  $('demoLink').href = '#';
+  $('demoLink').firstChild.textContent = 'Demo-Modus beenden';
+}
+if (!navigator.bluetooth) $('noBt').hidden = false;
+window.addEventListener('hashchange', () => location.reload());
+
+function send(bytes, quiet = false) {
+  gattQueue = gattQueue.then(() => chr.writeValueWithoutResponse(bytes)).catch((e) => console.warn(e));
+  if (!quiet || $('logLive').checked) log('→', bytes);
+  return gattQueue;
+}
+
+function waitFor(match, ms) {
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => { waiter = null; reject(new Error('Keine Antwort vom Controller')); }, ms);
+    waiter = { match, resolve: (f) => { clearTimeout(timer); waiter = null; resolve(f); } };
+  });
+}
+
+function onFrame(f) {
+  const isLive = f.cmd === 0x13;
+  if (!isLive || $('logLive').checked) log('←', f.bytes);
+  if (waiter && waiter.match(f)) return waiter.resolve(f);
+  if (isLive && !f.short && polling) {
+    const d = decodeRealtime(f.bytes, settings);
+    if (d.valid) showLive(d);
+    else { badFrames++; if (badFrames % 20 === 1) log('!', f.bytes, `ungültiger Live-Frame (${badFrames} bisher)`); }
+  }
+}
+
+// ---------- Verbinden, AutoConnect, Neuverbinden
+let userDisconnected = false, reconnectTimer = null, connecting = false, autoTries = 0;
+
+function onNotify(e) {
+  const v = e.target.value;
+  const bytes = new Uint8Array(v.buffer, v.byteOffset, v.byteLength);
+  if ($('logRaw').checked) log('⇠', bytes, bytes.length + ' Byte');
+  parser.push(bytes);
+}
+
+function setStatus(text, on = false) {
+  $('dot').classList.toggle('on', on);
+  $('connText').textContent = text;
+}
+
+/** reuse: bekanntes Gerät neu verbinden (ohne Suche) · auto: still, ohne Fehlermeldungen */
+async function connect({ reuse = false, auto = false } = {}) {
+  if (connecting || connected) return;
+  connecting = true;
+  clearTimeout(reconnectTimer); reconnectTimer = null;
+  userDisconnected = false;
+  try {
+    if (!reuse || !device) {
+      setStatus('suche Roller …');
+      device = await navigator.bluetooth.requestDevice({
+        filters: [{ namePrefix: 'GEKOO' }, { services: [SERVICE_UUID] }],
+        optionalServices: [SERVICE_UUID],
+      });
+    }
+    setStatus('verbinde …');
+    device.addEventListener('gattserverdisconnected', onDisconnect);
+    const server = await device.gatt.connect();
+    const svc = await server.getPrimaryService(SERVICE_UUID);
+    chr = await svc.getCharacteristic(CHAR_UUID);
+    chr.addEventListener('characteristicvaluechanged', onNotify);   // gleiche Funktion → kein Doppel-Listener
+    parser.reset();
+    await chr.startNotifications();
+    connected = true; autoTries = 0;
+    setStatus(device.name || 'verbunden', true);
+    $('connectBtn').textContent = 'Trennen'; $('readBtn').disabled = false;
+    renderTacho();
+    startPolling();
+    if (!original) loadParams().catch((e) => log('!', [], 'Parameter lesen: ' + e.message));
+  } catch (e) {
+    setStatus('getrennt');
+    $('connectBtn').textContent = 'Verbinden';
+    if (reuse && settings.autoReconnect && !userDisconnected) scheduleReconnect();
+    else if (auto && settings.autoConnect && ++autoTries < 6 && e.name !== 'NotFoundError') {
+      setStatus('Roller nicht gefunden, suche weiter …');
+      reconnectTimer = setTimeout(() => connect({ auto: true }), 5000);
+      $('connectBtn').textContent = 'Abbrechen';
+    } else if (!auto && e.name !== 'NotFoundError') toast('Verbindung fehlgeschlagen: ' + e.message, 'bad');
+  } finally { connecting = false; }
+}
+
+function scheduleReconnect() {
+  clearTimeout(reconnectTimer);
+  setStatus('neu verbinden …');
+  $('connectBtn').textContent = 'Abbrechen';
+  reconnectTimer = setTimeout(() => { reconnectTimer = null; connect({ reuse: true }); }, 3000);
+}
+
+function onDisconnect() {
+  const was = connected;
+  connected = false; polling = false;
+  setStatus('getrennt');
+  $('connectBtn').textContent = 'Verbinden'; $('readBtn').disabled = true;
+  renderTacho();
+  if (!userDisconnected && settings.autoReconnect) {
+    if (was) toast('Verbindung verloren – verbinde neu …');
+    scheduleReconnect();
+  } else if (was) toast('Verbindung getrennt');
+}
+
+$('connectBtn').onclick = () => {
+  if (connected) { userDisconnected = true; device.gatt.disconnect(); onDisconnect(); }
+  else if (reconnectTimer) {                       // Neuverbinden/Suche abbrechen
+    clearTimeout(reconnectTimer); reconnectTimer = null; userDisconnected = true;
+    setStatus('getrennt'); $('connectBtn').textContent = 'Verbinden';
+  } else connect();
+};
+
+async function autoConnect() {
+  if (!settings.autoConnect || !navigator.bluetooth) return;
+  // In der Android-App und im Demo-Modus geht das ohne Antippen
+  if (window.GekooNative || location.hash === '#demo') return connect({ auto: true });
+  // Chrome: nur Geräte, die schon einmal erlaubt wurden (falls der Browser getDevices() kann)
+  try {
+    const known = (await navigator.bluetooth.getDevices?.()) || [];
+    const d = known.find((x) => /^GEKOO/i.test(x.name || ''));
+    if (d) { device = d; connect({ reuse: true, auto: true }); }
+  } catch {}
+}
+
+async function startPolling() {
+  if (opActive) return;                 // während Lesen/Schreiben keine Live-Abfrage
+  polling = true;
+  if (pollLoopRunning) return;
+  pollLoopRunning = true;
+  while (connected && polling) { send(CMD.POLL, true); await sleep(settings.pollMs); }
+  pollLoopRunning = false;
+}
+async function pausePolling() {
+  polling = false;
+  while (pollLoopRunning) await sleep(20);
+  await sleep(250);         // ausstehende Live-Antworten abwarten
+  parser.reset();
+}
+
+// ---------- Live-Anzeige
+const fmt = (v, d = 1) => (Number.isFinite(v) ? v.toFixed(d).replace('.', ',') : '–');
+const clamp01 = (x) => Math.min(1, Math.max(0, x));
+
+// Analoger Tacho: 240°-Bogen, Mittelpunkt (150,150), Radius 118
+const CX = 150, CY = 150, R = 118, SWEEP = 240;
+const pt = (deg, r) => [CX + r * Math.sin((deg * Math.PI) / 180), CY - r * Math.cos((deg * Math.PI) / 180)];
+let speedoMax = 80;
+function buildSpeedo() {
+  const limitKmh = original ? original[11] * (settings.tireCm / 100) * 0.06 : null;
+  speedoMax = Math.max(60, Math.ceil(((limitKmh || 70) + 5) / 10) * 10);
+  const [x0, y0] = pt(-SWEEP / 2, R), [x1, y1] = pt(SWEEP / 2, R);
+  const arc = `M${x0.toFixed(1)},${y0.toFixed(1)} A${R},${R} 0 1 1 ${x1.toFixed(1)},${y1.toFixed(1)}`;
+  $('arcBg').setAttribute('d', arc); $('arcVal').setAttribute('d', arc);
+  let g = '';
+  for (let v = 0; v <= speedoMax; v += 5) {
+    const deg = -SWEEP / 2 + (SWEEP * v) / speedoMax, major = v % 10 === 0;
+    const [a1, b1] = pt(deg, R - 12), [a2, b2] = pt(deg, R - (major ? 26 : 19));
+    g += `<line class="tick${major ? ' major' : ''}" x1="${a1.toFixed(1)}" y1="${b1.toFixed(1)}" x2="${a2.toFixed(1)}" y2="${b2.toFixed(1)}"/>`;
+    if (major && (speedoMax <= 80 || v % 20 === 0)) {
+      const [tx, ty] = pt(deg, R - 40);
+      g += `<text class="tick-label" x="${tx.toFixed(1)}" y="${ty.toFixed(1)}">${v}</text>`;
+    }
+  }
+  if (limitKmh && limitKmh < speedoMax) {       // rote Marke: Höchstdrehzahl Stufe H
+    const deg = -SWEEP / 2 + (SWEEP * limitKmh) / speedoMax;
+    const [a1, b1] = pt(deg, R + 9), [a2, b2] = pt(deg, R - 9);
+    g += `<line class="tick limit" x1="${a1.toFixed(1)}" y1="${b1.toFixed(1)}" x2="${a2.toFixed(1)}" y2="${b2.toFixed(1)}"><title>Limit Stufe H</title></line>`;
+  }
+  $('ticks').innerHTML = g;
+}
+
+// Ladezustand aus der Zellspannung (typische NMC-Ruhekurve, Li-Ion 18650/21700)
+const NMC = [[3.00, 0], [3.30, 2], [3.45, 5], [3.55, 10], [3.62, 15], [3.68, 20], [3.72, 30], [3.76, 40],
+             [3.80, 50], [3.85, 60], [3.91, 70], [3.98, 80], [4.06, 90], [4.20, 100]];
+function socFromCell(v) {
+  if (v <= NMC[0][0]) return 0;
+  for (let i = 1; i < NMC.length; i++) {
+    if (v <= NMC[i][0]) {
+      const [v0, s0] = NMC[i - 1], [v1, s1] = NMC[i];
+      return s0 + ((v - v0) / (v1 - v0)) * (s1 - s0);
+    }
+  }
+  return 100;
+}
+let socSmooth = null;
+function showBattery(voltage, current) {
+  const cell = voltage / (settings.cells || 13);
+  const raw = socFromCell(cell);
+  // Unter Last sackt die Spannung ab → dann nur sehr langsam nachführen
+  const alpha = socSmooth == null ? 1 : Math.abs(current) > 3 ? 0.003 : 0.05;
+  socSmooth = socSmooth == null ? raw : socSmooth + alpha * (raw - socSmooth);
+  const soc = Math.round(socSmooth);
+  $('soc').textContent = soc;
+  $('voltage').textContent = fmt(voltage, 1);
+  $('cellV').textContent = `${fmt(cell, 2)} V/Zelle · ${settings.cells}S`;
+  const bar = $('tankBar');
+  bar.className = 'tank-bar ' + (soc < 20 ? 'bad' : soc < 40 ? 'warn' : 'ok');
+  [...bar.children].forEach((el, i) => el.classList.toggle('on', soc > i * 10 + 2));
+}
+
+function meter(id, value, max, { warnAt = 0.75, badAt = 0.92, level } = {}) {
+  const frac = max > 0 ? clamp01(value / max) : 0;
+  const m = $(id + 'Meter');
+  m.firstChild.style.width = (frac * 100).toFixed(1) + '%';
+  const lv = level ?? (frac >= badAt ? 'bad' : frac >= warnAt ? 'warn' : '');
+  m.className = 'meter ' + lv;
+  $(id + 'Pct').textContent = Math.round(frac * 100) + ' %';
+}
+
+// Grenzwerte für die Balken: aus den Parametern, sonst übliche Werte
+const limits = () => ({
+  batt: original?.[0] || 45,
+  phase: original?.[1] || 120,
+  fw: original?.[21] || 65,
+});
+function throttleRange() {
+  // Wort 4 / Wort 3 sind vermutlich Leerlauf- / Vollgas-Spannung (gleiche Skala wie live)
+  const idle = original ? original[4] * SCALE.throttle : 0, full = original ? original[3] * SCALE.throttle : 0;
+  return idle > 0.3 && full > idle + 1 && full < 5 ? [idle, full] : [0.86, 3.42];
+}
+
+let lastGear = '';
+function showLive(d) {
+  const L = limits();
+  $('kmh').textContent = fmt(d.kmh, 0);
+  const frac = clamp01(d.kmh / speedoMax);
+  $('needle').style.transform = `rotate(${(-SWEEP / 2 + SWEEP * frac).toFixed(1)}deg)`;
+  $('arcVal').setAttribute('stroke-dasharray', `${(frac * 100).toFixed(2)} 100`);
+  $('rpm').textContent = fmt(d.rpm, 0);
+  if (d.gear !== lastGear) {
+    lastGear = d.gear;
+    $('gear').querySelectorAll('span').forEach((el) => el.classList.toggle('on', el.dataset.g === d.gear));
+  }
+  showBattery(d.voltage, d.batteryCurrent);
+
+  const power = d.voltage * d.batteryCurrent;
+  $('power').textContent = fmt(power, 0);
+  meter('power', power, d.voltage * L.batt); $('powerMax').textContent = `max ${fmt((d.voltage * L.batt) / 1000, 1)} kW`;
+  $('batteryCurrent').textContent = fmt(d.batteryCurrent, 0);
+  meter('batteryCurrent', d.batteryCurrent, L.batt); $('batteryCurrentMax').textContent = `max ${L.batt} A`;
+  $('phaseCurrent').textContent = fmt(d.phaseCurrent, 1);
+  meter('phaseCurrent', d.phaseCurrent, L.phase); $('phaseCurrentMax').textContent = `max ${L.phase} A`;
+  $('fieldWeakening').textContent = fmt(d.fieldWeakening, 1);
+  meter('fieldWeakening', d.fieldWeakening, L.fw, { warnAt: 2, badAt: 2 }); $('fieldWeakeningMax').textContent = `max ${L.fw} A`;
+  const [idle, full] = throttleRange();
+  $('throttleV').textContent = fmt(d.throttleV, 2);
+  meter('throttleV', d.throttleV - idle, full - idle, { warnAt: 2, badAt: 2 }); $('throttleVMax').textContent = `${fmt(idle, 2)}–${fmt(full, 2)} V`;
+  $('temperature').textContent = fmt(d.temperature, 1);
+  meter('temperature', d.temperature, 100, { level: d.temperature > 85 ? 'bad' : d.temperature > 70 ? 'warn' : '' });
+  $('temperatureMax').textContent = 'Skala 100 °C';
+  $('temperatureTile').classList.toggle('warn', d.temperature > 70 && d.temperature <= 85);
+  $('temperatureTile').classList.toggle('bad', d.temperature > 85);
+  $('aux12v').textContent = fmt(d.aux12v, 1);
+  $('errorCode').textContent = d.errorCode === 0 ? 'keiner' : '0x' + d.errorCode.toString(16);
+  $('errTile').classList.toggle('bad', d.errorCode !== 0);
+}
+
+// ---------- Parameter
+let original = null;   // zuletzt gelesene Wörter
+let edited = null;     // Arbeitskopie
+const known = new Map(PARAMS.map((p) => [p.i, p]));
+const GROUPS = ['Strom', 'Fahrstufen', 'Motor', 'Spannung', 'Rekuperation', 'Tacho', 'Akku', 'Experte', 'Unbekannt'];
+
+// Lesen/Schreiben strikt nacheinander, Live-Abfrage solange pausiert
+let opChain = Promise.resolve(), opActive = 0;
+function exclusive(fn) {
+  const run = opChain.then(async () => {
+    opActive++;
+    try { await pausePolling(); return await fn(); }
+    finally { opActive--; if (connected && opActive === 0) startPolling(); }
+  });
+  opChain = run.catch(() => {});
+  return run;
+}
+
+async function readParamsRaw() {
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    send(CMD.READ_PARAMS);
+    try {
+      const f = await waitFor((f) => f.cmd === 0x11 && !f.short, 3000);
+      const words = wordsFromBlock(f.bytes);
+      if (!checksumOk(words)) throw new Error('Prüfsumme falsch');
+      return words;
+    } catch (e) { if (attempt === 3) throw e; await sleep(300); parser.reset(); }
+  }
+}
+const readParams = () => exclusive(readParamsRaw);
+
+async function loadParams() {
+  original = await readParams();
+  edited = original.slice();
+  if (original[34] >= 1 && original[34] <= 60) { settings.polePairs = original[34]; $('polePairs').value = original[34]; saveSettings(); }
+  $('paramState').textContent = `Gelesen um ${new Date().toLocaleTimeString('de-AT')} · Prüfsumme ok · Kennung ${original[60]}`;
+  $('backupBtn').disabled = false;
+  renderParams();
+  renderTacho();
+  buildSpeedo();
+}
+
+$('readBtn').onclick = async () => {
+  $('readBtn').disabled = true;
+  try { await loadParams(); } catch (e) { toast('Lesen fehlgeschlagen: ' + e.message, 'bad'); }
+  $('readBtn').disabled = !connected;
+};
+
+$('tachoApply').onclick = async () => {
+  $('tachoApply').disabled = true;
+  try {
+    if (!original) await loadParams();
+    const want = tachoFactor();
+    if (original[TACHO_WORD] === want) { toast(`Controller hat schon ${want}.`, 'ok'); return renderTacho(); }
+    edited[TACHO_WORD] = want;
+    renderParams();
+    $('reviewBtn').onclick();      // gewohnter Prüfdialog mit alt/neu und Bestätigung
+  } catch (e) { toast('Lesen fehlgeschlagen: ' + e.message, 'bad'); }
+  renderTacho();
+};
+
+$('calBtn').onclick = () => {
+  const t = Number($('calTacho').value), g = Number($('calGps').value);
+  if (!(t > 0 && g > 0)) return toast('Bitte beide Geschwindigkeiten eintragen.', 'bad');
+  // Tacho = echte Geschw. × (Faktor/100) × Bezug / Reifen  →  Bezug = 100 × T × Reifen / (G × Faktor)
+  const factorNow = original ? original[TACHO_WORD] : tachoFactor();
+  const ref = (100 * t * settings.tireCm) / (g * factorNow);
+  if (!(ref > 30 && ref < 300)) return toast('Ergebnis unplausibel – Werte prüfen.', 'bad');
+  settings.refCm = Math.round(ref * 10) / 10;
+  $('refCm').value = settings.refCm;
+  saveSettings();
+  renderTacho();
+  toast(`Bezugsumfang jetzt ${String(settings.refCm).replace('.', ',')} cm → Faktor ${tachoFactor()}`, 'ok');
+};
+
+function speedHint(rpm) {
+  const kmh = rpm * (settings.tireCm / 100) * 0.06;
+  return `≈ ${fmt(kmh, 0)} km/h bei ${settings.tireCm} cm Reifenumfang`;
+}
+
+function renderParams() {
+  const list = $('paramList');
+  if (!edited) { list.innerHTML = ''; return updateSavebar(); }
+  const expert = $('expert').checked;
+  const openGroups = new Set([...list.querySelectorAll('details[open]')].map((d) => d.dataset.g));
+  list.innerHTML = '';
+  for (const g of GROUPS) {
+    if ((g === 'Experte' || g === 'Unbekannt') && !expert) continue;
+    const items = g === 'Unbekannt'
+      ? [...Array(64).keys()].filter((i) => !known.has(i)).map((i) => ({ i, name: READ_ONLY.has(i) ? (i === 63 ? 'Prüfsumme' : 'Kennung') : `Wort ${i}`, unit: '', min: 0, max: 65535, conf: '', help: READ_ONLY.has(i) ? 'Wird automatisch gesetzt / nicht ändern.' : 'Bedeutung unbekannt. Nur ändern, wenn du weißt, was du tust.' }))
+      : PARAMS.filter((p) => p.group === g);
+    if (!items.length) continue;
+    const det = document.createElement('details');
+    det.className = 'group'; det.dataset.g = g;
+    det.open = openGroups.size ? openGroups.has(g) : g !== 'Unbekannt';
+    det.innerHTML = `<summary>${g === 'Unbekannt' ? 'Unbekannte Werte (roh)' : g}</summary>`;
+    for (const p of items) det.append(paramRow(p));
+    list.append(det);
+  }
+  updateSavebar();
+}
+
+function paramRow(p) {
+  const row = document.createElement('div');
+  row.className = 'prm';
+  const ro = READ_ONLY.has(p.i) || (!$('expert').checked && (p.group === 'Experte'));
+  row.innerHTML = `
+    <div><div class="name">${p.name}</div>
+      <div class="meta">Wort ${p.i} · Original ${original[p.i]}${p.unit ? ' ' + p.unit : ''}</div></div>
+    <div class="inp"><input type="number" inputmode="numeric" step="1" min="${p.min}" max="${p.max}" value="${edited[p.i]}" ${ro ? 'disabled' : ''}><span class="u">${p.unit}</span></div>
+    <div class="help">${p.help}</div>`;
+  const input = row.querySelector('input');
+  const extra = document.createElement('div');
+  row.append(extra);
+  const refresh = () => {
+    row.classList.toggle('changed', edited[p.i] !== original[p.i]);
+    extra.className = 'hint';
+    extra.textContent = p.speed ? speedHint(edited[p.i]) : '';
+  };
+  input.addEventListener('input', () => {
+    const v = Number(input.value);
+    const ok = input.value !== '' && Number.isInteger(v) && v >= p.min && v <= p.max;
+    input.classList.toggle('invalid', !ok);
+    if (!ok) { extra.className = 'err'; extra.textContent = `Erlaubt: ganze Zahl von ${p.min} bis ${p.max}`; return; }
+    edited[p.i] = v; refresh(); updateSavebar();
+  });
+  refresh();
+  return row;
+}
+$('expert').onchange = renderParams;
+
+const changes = () => (edited ? [...Array(63).keys()].filter((i) => edited[i] !== original[i] && !READ_ONLY.has(i)) : []);
+function updateSavebar() {
+  const n = changes().length;
+  $('savebar').hidden = n === 0;
+  $('saveInfo').textContent = `${n} Änderung${n === 1 ? '' : 'en'} noch nicht geschrieben`;
+}
+$('discardBtn').onclick = () => { edited = original.slice(); renderParams(); };
+
+function warnings(w) {
+  const out = [];
+  if (w[57] > 55) out.push(`Rekuperations-Spannungsgrenze ${w[57]} V liegt über der Ladeschlussspannung eines 13S-Akkus (54,6 V).`);
+  if (w[26] < 36) out.push(`Unterspannung ${w[26]} V ist für einen 13S-Akku sehr niedrig (Tiefentladung).`);
+  if (w[21] > 80) out.push(`Feldschwächung ${w[21]} A ist sehr hoch – Motor kann überhitzen.`);
+  if (w[1] > 150) out.push(`Phasenstrom ${w[1]} A ist für einen Roller-Nabenmotor sehr hoch.`);
+  if (w[0] > 60) out.push(`Batteriestrom ${w[0]} A – prüfe, ob Akku/BMS das dauerhaft können.`);
+  for (const i of changes()) {
+    const p = known.get(i);
+    if (!p) out.push(`Wort ${i} ist ein unbekannter Wert.`);
+  }
+  return out;
+}
+
+$('reviewBtn').onclick = () => {
+  $('diffBody').innerHTML = changes().map((i) => {
+    const p = known.get(i);
+    return `<tr><td>${p ? p.name : 'Wort ' + i}</td><td class="n">${original[i]}</td><td class="n">${edited[i]} ${p?.unit ?? ''}</td></tr>`;
+  }).join('');
+  const w = warnings(edited);
+  $('warnList').innerHTML = w.map((x) => `<li>${x}</li>`).join('');
+  $('safeChk').checked = false; $('confirmWrite').disabled = true;
+  if (!connected) toast('Nicht verbunden – zum Schreiben erst verbinden.', 'bad');
+  $('reviewDlg').showModal();
+};
+$('safeChk').onchange = () => ($('confirmWrite').disabled = !$('safeChk').checked || !connected);
+$('cancelWrite').onclick = () => $('reviewDlg').close();
+
+$('confirmWrite').onclick = async () => {
+  $('confirmWrite').disabled = true;
+  const target = edited.slice();
+  try {
+    const back = await exclusive(async () => {
+      send(CMD.UNLOCK_WRITE);
+      await waitFor((f) => f.cmd === 0x21 && f.short, 2000);
+      const frame = buildWriteFrame(target);
+      const ack = waitFor((f) => f.cmd === 0x12 && f.short, 4000);
+      for (const c of chunks(frame)) { send(c); await sleep(CHUNK_DELAY_MS); }
+      const a = await ack;
+      if (a.bytes[3] !== 0xaa) throw new Error('Controller hat das Schreiben abgelehnt');
+      await sleep(300);
+      return readParamsRaw();                       // zur Kontrolle zurücklesen
+    });
+    const bad = [...Array(63).keys()].filter((i) => back[i] !== target[i]);
+    original = back; edited = back.slice();
+    $('reviewDlg').close();
+    renderParams();
+    renderTacho();
+    buildSpeedo();
+    if (bad.length) toast(`Geschrieben, aber ${bad.length} Wert(e) weichen beim Zurücklesen ab!`, 'bad');
+    else toast('Gespeichert und überprüft. Zündung aus und wieder an.', 'ok');
+  } catch (e) {
+    toast('Schreiben fehlgeschlagen: ' + e.message, 'bad');
+    $('confirmWrite').disabled = false;
+  }
+};
+
+// ---------- Backup
+function download(name, text, type = 'application/json') {
+  if (window.gekooSaveFile) {           // Android-App: in "Download/Gekoo" speichern
+    try { toast('Gespeichert: ' + window.gekooSaveFile(name, text), 'ok'); } catch (e) { toast('Speichern fehlgeschlagen: ' + e.message, 'bad'); }
+    return;
+  }
+  const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(new Blob([text], { type })), download: name });
+  a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+}
+$('backupBtn').onclick = () => download(`gekoo-backup-${new Date().toISOString().slice(0, 16).replace(':', '')}.json`,
+  JSON.stringify({ format: 'gekoo-params-v1', created: new Date().toISOString(), words: original }, null, 1));
+$('restoreBtn').onclick = () => $('restoreFile').click();
+$('restoreFile').onchange = async () => {
+  try {
+    const data = JSON.parse(await $('restoreFile').files[0].text());
+    if (data.format !== 'gekoo-params-v1' || data.words?.length !== 64) throw new Error('Unbekanntes Format');
+    if (!original) throw new Error('Erst die aktuellen Parameter vom Controller lesen');
+    edited = data.words.slice(); edited[60] = original[60];
+    renderParams();
+    toast('Backup geladen – Änderungen prüfen und schreiben.');
+  } catch (e) { toast('Backup: ' + e.message, 'bad'); }
+  $('restoreFile').value = '';
+};
+
+buildSpeedo();
+renderTacho();
+autoConnect();
+</script>
+</body>
+</html>

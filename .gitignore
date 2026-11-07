@@ -1,0 +1,4 @@
+node_modules/
+*.log
+*.zip
+__pycache__/

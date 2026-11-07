@@ -1,0 +1,8 @@
+{
+  "name": "gekoo-ble-tool",
+  "version": "0.1.0",
+  "description": "Offene, deutschsprachige Web-App für GEKOO-BLE Motorcontroller (Fardriver-artig)",
+  "type": "module",
+  "license": "MIT",
+  "scripts": { "test": "node test/replay.test.js" }
+}
