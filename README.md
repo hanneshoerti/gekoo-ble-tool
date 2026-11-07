@@ -11,6 +11,17 @@ Protocol documented in [PROTOCOL.md](PROTOCOL.md).*
 **Android-App:** [neueste APK unter Releases](https://github.com/hanneshoerti/gekoo-ble-tool/releases/latest)
 
 
+<p align="center">
+  <img src="docs/screenshots/live-dark.png" width="240" alt="Live-Anzeige: analoger Tacho bei 69 km/h in Stufe H, Akku-Anzeige und Prozentbalken">
+  <img src="docs/screenshots/parameter.png" width="240" alt="Parameter: Höchstdrehzahl je Fahrstufe mit km/h-Umrechnung">
+  <img src="docs/screenshots/schreiben.png" width="240" alt="Prüfdialog vor dem Schreiben mit alt/neu">
+</p>
+<p align="center">
+  <img src="docs/screenshots/live-light.png" width="240" alt="Live-Anzeige im hellen Modus">
+  <img src="docs/screenshots/tacho-faktor.png" width="240" alt="Tacho-Korrekturfaktor aus dem Reifenumfang mit GPS-Kalibrierung">
+</p>
+<p align="center"><sub>Aufgenommen im Demo-Modus mit echten Messdaten eines NIU M+ (Stufe H, Feldschwächung aktiv).</sub></p>
+
 ## Was sie kann
 
 - **Live:** analoger Tacho (km/h aus Reifenumfang, rote Marke am Limit von Stufe H), Drehzahl, Gang,
