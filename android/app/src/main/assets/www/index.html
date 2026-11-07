@@ -128,6 +128,7 @@
   .dlg input[type=checkbox] { width: 20px; height: 20px; margin-top: 1px; flex: none; }
 
   /* Settings / Log */
+  h2.sect { font-size: 13px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .6px; margin: 4px 2px 8px; }
   .form { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 4px 14px; margin-bottom: 14px; }
   .form .row { display: flex; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--line); }
   .form .row:last-child { border-bottom: 0; }
@@ -166,6 +167,9 @@
   </div>
 
   <section id="tab-live">
+    <div class="note" id="firstRun" hidden><b>Erster Start:</b> Die Standardwerte (Reifenumfang 133 cm, 48-V-Akku mit 13 Zellen)
+      passen zu einem NIU M+. Für andere Fahrzeuge bitte unter Einstellungen anpassen.
+      <div class="bar" style="margin:10px 0 0"><button id="frSettings">Einstellungen öffnen</button><button id="frOk">Passt so</button></div></div>
     <div class="gauge-card">
       <svg id="speedo" viewBox="0 0 300 232" role="img" aria-label="Tacho">
         <path class="arc-bg" id="arcBg" />
@@ -214,12 +218,13 @@
   </section>
 
   <section id="tab-settings" hidden>
+    <h2 class="sect">Fahrzeug</h2>
     <div class="form">
       <div class="row"><span>Reifenumfang<small>Für die km/h-Berechnung. Kreidestrich, eine Radumdrehung, messen.</small></span>
         <input type="number" id="tireCm" min="50" max="300" step="1"> cm</div>
-      <div class="row"><span>Tacho-Bezugsumfang<small>Mit diesem Umfang rechnet der NIU-Tacho bei Faktor 100. Aus deiner Messung: 97,1 cm.</small></span>
+      <div class="row"><span>Tacho-Bezugsumfang<small>Mit diesem Umfang rechnet der Fahrzeug-Tacho bei Faktor 100. Beim NIU M+ gemessen: 97,1 cm. Mit „GPS nachkalibrieren“ für jedes Fahrzeug bestimmbar.</small></span>
         <input type="number" id="refCm" min="30" max="300" step="0.1"> cm</div>
-      <div class="row"><span>Akku-Zellen in Reihe<small>Für die Akkuanzeige (NIU 48 V = 13).</small></span>
+      <div class="row"><span>Akku-Zellen in Reihe<small>Für Akkuanzeige und Warnungen. 48 V = 13S, 60 V = 16S, 72 V = 20S.</small></span>
         <input type="number" id="cells" min="7" max="30" step="1"> S</div>
       <div class="row"><span>Polpaare für Drehzahl<small>Wird beim Lesen der Parameter automatisch übernommen.</small></span>
         <input type="number" id="polePairs" min="1" max="60" step="1"></div>
@@ -281,14 +286,14 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 // ---------- Einstellungen (nur Komfort, darf fehlen)
 // refCm: Umfang, mit dem der Tacho bei Faktor 100 rechnet (gemessen: 133 cm brauchte Faktor 137 → 97,1 cm)
-const settings = { tireCm: 133, refCm: 97.1, polePairs: 24, pollMs: 100, autoConnect: true, autoReconnect: true, cells: 13 };
+const settings = { tireCm: 133, refCm: 97.1, polePairs: 24, pollMs: 100, autoConnect: true, autoReconnect: true, cells: 13, configured: false };
 try { Object.assign(settings, JSON.parse(localStorage.getItem('gekoo-settings') || '{}')); } catch {}
 const saveSettings = () => { try { localStorage.setItem('gekoo-settings', JSON.stringify(settings)); } catch {} };
 for (const k of ['tireCm', 'refCm', 'cells', 'polePairs', 'pollMs']) {
   $(k).value = settings[k];
   $(k).addEventListener('change', () => {
     const v = Number($(k).value);
-    if (v > 0) { settings[k] = v; saveSettings(); renderParams(); renderTacho(); buildSpeedo(); }
+    if (v > 0) { settings[k] = v; settings.configured = true; $('firstRun').hidden = true; saveSettings(); renderParams(); renderTacho(); buildSpeedo(); }
   });
 }
 
@@ -296,6 +301,11 @@ for (const k of ['autoConnect', 'autoReconnect']) {
   $(k).checked = !!settings[k];
   $(k).addEventListener('change', () => { settings[k] = $(k).checked; saveSettings(); });
 }
+
+// Erster Start: auf fahrzeugabhängige Standardwerte hinweisen
+$('firstRun').hidden = settings.configured || location.hash === '#demo';
+$('frOk').onclick = () => { settings.configured = true; saveSettings(); $('firstRun').hidden = true; };
+$('frSettings').onclick = () => document.querySelector('nav button[data-tab=settings]').click();
 
 // ---------- Tacho-Korrekturfaktor (Parameter-Wort 7) aus dem Reifenumfang
 const TACHO_WORD = 7;
@@ -744,8 +754,11 @@ $('discardBtn').onclick = () => { edited = original.slice(); renderParams(); };
 
 function warnings(w) {
   const out = [];
-  if (w[57] > 55) out.push(`Rekuperations-Spannungsgrenze ${w[57]} V liegt über der Ladeschlussspannung eines 13S-Akkus (54,6 V).`);
-  if (w[26] < 36) out.push(`Unterspannung ${w[26]} V ist für einen 13S-Akku sehr niedrig (Tiefentladung).`);
+  const cells = settings.cells || 13, full = cells * 4.2, empty = cells * 2.8;   // Li-Ion/NMC
+  const v1 = (x) => fmt(x, 1);
+  if (w[57] > full + 0.5) out.push(`Rekuperations-Spannungsgrenze ${w[57]} V liegt über der Ladeschlussspannung eines ${cells}S-Akkus (${v1(full)} V).`);
+  if (w[26] < empty) out.push(`Unterspannung ${w[26]} V ist für einen ${cells}S-Akku sehr niedrig (unter ${v1(empty)} V, Tiefentladung).`);
+  if (w[26] > cells * 3.6) out.push(`Unterspannung ${w[26]} V ist für einen ${cells}S-Akku sehr hoch – der Controller schaltet dann schon bei halbvollem Akku ab.`);
   if (w[21] > 80) out.push(`Feldschwächung ${w[21]} A ist sehr hoch – Motor kann überhitzen.`);
   if (w[1] > 150) out.push(`Phasenstrom ${w[1]} A ist für einen Roller-Nabenmotor sehr hoch.`);
   if (w[0] > 60) out.push(`Batteriestrom ${w[0]} A – prüfe, ob Akku/BMS das dauerhaft können.`);

@@ -36,6 +36,20 @@ Protocol documented in [PROTOCOL.md](PROTOCOL.md).*
 - **Protokoll-Log** für Fehlersuche und zum Weiterentschlüsseln
 - **Demo-Modus** ohne Roller: `index.html#demo` (simulierter Controller mit echten Messdaten)
 
+## Für welche Fahrzeuge?
+
+Die App spricht mit dem **Gekoo-Controller**, nicht mit dem Fahrzeug. Protokoll und Parameter-Beschriftungen
+gelten deshalb für jedes Fahrzeug mit diesem Controller. Getestet ist bisher ein **Gekoo ND72260 an einem NIU M+ Lite**.
+Andere Gekoo-Typen oder Firmware-Versionen können abweichen. Rückmeldungen gerne als Issue.
+
+Fahrzeugabhängig sind nur diese Einstellungen (Reiter „Einstellungen“, die App weist beim ersten Start darauf hin):
+
+| Einstellung | Standard (NIU M+) | Wofür |
+|---|---|---|
+| Reifenumfang | 133 cm | km/h-Anzeige, km/h-Hinweise bei den Drehzahlgrenzen |
+| Akku-Zellen in Reihe | 13 (48 V) | Akkuanzeige und Warnungen beim Schreiben (16 = 60 V, 20 = 72 V) |
+| Tacho-Bezugsumfang | 97,1 cm | Tacho-Korrekturfaktor; mit „GPS nachkalibrieren“ für jedes Fahrzeug bestimmbar |
+
 ## Benutzen
 
 Web Bluetooth braucht **Chrome auf Android oder am Computer** (Windows, macOS, Linux) und eine

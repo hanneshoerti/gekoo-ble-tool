@@ -162,7 +162,7 @@ export const PARAMS = [
   { i: 28, name: 'Leistungsreduzierung Ende', unit: 'V', min: 20, max: 90, conf: 'ok', group: 'Spannung',
     help: 'Hier ist die Leistung am stärksten reduziert.' },
   { i: 57, name: 'Rekuperation Spannungsgrenze', unit: 'V', min: 30, max: 100, conf: 'ok', group: 'Spannung',
-    help: 'Über dieser Akkuspannung wird nicht mehr zurückgeladen. Für 13S höchstens 54 V.' },
+    help: 'Über dieser Akkuspannung wird nicht mehr zurückgeladen. Knapp unter der Ladeschlussspannung wählen (13S: 54 V, 16S: 67 V, 20S: 84 V).' },
   { i: 22, name: 'Bremsmoment beim Bremsen', unit: 'Nm', min: 0, max: 100, conf: 'ok', group: 'Rekuperation',
     help: '„Brake feedback torque“. Wie stark der Motor mitbremst, wenn du den Bremshebel ziehst.' },
   { i: 45, name: 'Bremsmoment beim Gas loslassen', unit: 'Nm', min: 0, max: 100, conf: 'ok', group: 'Rekuperation',

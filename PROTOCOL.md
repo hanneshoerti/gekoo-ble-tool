@@ -4,8 +4,8 @@ Reverse-engineered aus einem Android-HCI-Mitschnitt (`btsnoop_hci.log`) der WeCh
 im Gespräch mit einem Gekoo-Controller, der sich als Typ **ND72260** meldet. Das Protokoll ist **nicht**
 das bekannte Fardriver-Protokoll (16-Byte-Pakete mit CRC), sondern deutlich einfacher.
 
-Status: Lesen und Schreiben funktioniert im Mitschnitt und in der Simulation. Mit echter Hardware bisher
-nur ein Gerät getestet.
+Status: Lesen und Schreiben funktioniert. Mit echter Hardware bisher nur ein Gerät getestet
+(Gekoo ND72260 an einem NIU M+ Lite, 13S-Akku, Motor mit 24 Polpaaren).
 
 ## Bluetooth LE
 
@@ -90,7 +90,7 @@ Kalibriert an der Anzeige der Original-App in allen drei Gängen.
 | Wort / Byte | Bedeutung | Umrechnung |
 |---|---|---|
 | Wort 2 | Gasgriff-Spannung | ÷ 2450 → V |
-| Wort 6 | Drehzahl | × 4,395 ÷ Polpaare → U/min |
+| Wort 6 | Drehzahl | × 4,395 ÷ Polpaare → U/min (nur mit 24 Polpaaren geprüft) |
 | Wort 8 | Akkuspannung | ÷ 273,3 → V |
 | Wort 9 | Akkustrom | A |
 | Wort 12 | Feldschwächungsstrom (negativ) | ÷ 32 → A |
