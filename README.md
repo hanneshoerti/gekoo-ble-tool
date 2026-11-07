@@ -67,6 +67,9 @@ Selbst bauen:
    **Build → Build App Bundle(s) / APK(s) → Build APK(s)**. Die APK liegt dann in `android/app/build/outputs/apk/`.
 4. Beim ersten Verbinden fragt die App nach der Berechtigung „Geräte in der Nähe“, bitte erlauben.
 
+Alle Builds werden mit dem Schlüssel `android/signing.keystore` signiert (absichtlich öffentlich), damit
+Updates zwischen selbst gebauten und GitHub-APKs ohne Deinstallieren klappen.
+
 Nach Änderungen an `index.html` oder `gekoo.js` vor dem Bauen `android/sync-web.sh` (bzw. `sync-web.bat`)
 ausführen. Damit werden die Dateien nach `android/app/src/main/assets/www/` kopiert.
 

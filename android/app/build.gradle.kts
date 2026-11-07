@@ -14,11 +14,25 @@ android {
         versionName = "0.1.0"
     }
 
+    // Fester, absichtlich öffentlicher Schlüssel: Alle Builds (Android Studio, GitHub Actions)
+    // sind gleich signiert, damit Updates ohne Deinstallieren funktionieren.
+    // Für ein privates Fork einen eigenen Schlüssel erzeugen.
+    signingConfigs {
+        create("community") {
+            storeFile = rootProject.file("signing.keystore")
+            storePassword = "gekoo-ble-tool"
+            keyAlias = "gekoo"
+            keyPassword = "gekoo-ble-tool"
+        }
+    }
+
     buildTypes {
+        debug {
+            signingConfig = signingConfigs.getByName("community")
+        }
         release {
             isMinifyEnabled = false
-            // Für den Eigengebrauch mit dem Debug-Schlüssel signiert, damit die APK direkt installierbar ist.
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.getByName("community")
         }
     }
 
