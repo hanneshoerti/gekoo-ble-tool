@@ -29,6 +29,7 @@ import android.os.Looper;
 import android.os.ParcelUuid;
 import android.provider.MediaStore;
 import android.view.WindowManager;
+import android.webkit.GeolocationPermissions;
 import android.webkit.JavascriptInterface;
 import android.webkit.ValueCallback;
 import android.webkit.WebChromeClient;
@@ -62,6 +63,7 @@ public class MainActivity extends Activity {
     private static final String HOST = "appassets.androidplatform.net";
     private static final int REQ_PERMISSIONS = 1;
     private static final int REQ_FILE = 2;
+    private static final int REQ_LOCATION = 3;
     private static final long SCAN_TIMEOUT_MS = 10000;
     private static final long CONNECT_TIMEOUT_MS = 15000;
     private static final long OP_TIMEOUT_MS = 2000;
@@ -69,6 +71,8 @@ public class MainActivity extends Activity {
     private final Handler main = new Handler(Looper.getMainLooper());
     private WebView web;
     private ValueCallback<Uri[]> fileCallback;
+    private String geoOrigin;
+    private GeolocationPermissions.Callback geoCallback;
 
     private BluetoothAdapter adapter;
     private BluetoothLeScanner scanner;
@@ -108,6 +112,7 @@ public class MainActivity extends Activity {
         s.setDomStorageEnabled(true);
         s.setAllowFileAccess(false);
         s.setAllowContentAccess(false);
+        s.setGeolocationEnabled(true);
         web.addJavascriptInterface(new Bridge(), "GekooNative");
 
         web.setWebViewClient(new WebViewClient() {
@@ -135,6 +140,17 @@ public class MainActivity extends Activity {
         });
 
         web.setWebChromeClient(new WebChromeClient() {
+            // GPS für die Seite: nur eigene Inhalte, Android-Berechtigung bei Bedarf abfragen
+            @Override
+            public void onGeolocationPermissionsShowPrompt(String origin, GeolocationPermissions.Callback callback) {
+                if (!origin.contains(HOST)) { callback.invoke(origin, false, false); return; }
+                if (hasLocationPermission()) { callback.invoke(origin, true, false); return; }
+                geoOrigin = origin;
+                geoCallback = callback;
+                requestPermissions(new String[]{Manifest.permission.ACCESS_FINE_LOCATION,
+                        Manifest.permission.ACCESS_COARSE_LOCATION}, REQ_LOCATION);
+            }
+
             @Override
             public boolean onShowFileChooser(WebView view, ValueCallback<Uri[]> callback, FileChooserParams params) {
                 if (fileCallback != null) fileCallback.onReceiveValue(null);
@@ -218,9 +234,20 @@ public class MainActivity extends Activity {
         return true;
     }
 
+    private boolean hasLocationPermission() {
+        return checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED
+                || checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED;
+    }
+
     @Override
     public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] results) {
         super.onRequestPermissionsResult(requestCode, permissions, results);
+        if (requestCode == REQ_LOCATION) {
+            if (geoCallback != null) geoCallback.invoke(geoOrigin, hasLocationPermission(), false);
+            geoCallback = null;
+            geoOrigin = null;
+            return;
+        }
         if (requestCode != REQ_PERMISSIONS || pendingRequestId < 0) return;
         int id = pendingRequestId;
         pendingRequestId = -1;

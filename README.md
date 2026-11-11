@@ -17,6 +17,7 @@ Protocol documented in [PROTOCOL.md](PROTOCOL.md).*
   <img src="docs/screenshots/schreiben.png" width="240" alt="Prüfdialog vor dem Schreiben mit alt/neu">
 </p>
 <p align="center">
+  <img src="docs/screenshots/gps-vergleich.png" width="240" alt="GPS-Vergleich: Roller- und GPS-Tacho nebeneinander mit Verlauf und Kalibrier-Messung">
   <img src="docs/screenshots/live-light.png" width="240" alt="Live-Anzeige im hellen Modus">
   <img src="docs/screenshots/tacho-faktor.png" width="240" alt="Tacho-Korrekturfaktor aus dem Reifenumfang mit GPS-Kalibrierung">
 </p>
@@ -27,6 +28,8 @@ Protocol documented in [PROTOCOL.md](PROTOCOL.md).*
 - **Live:** analoger Tacho (km/h aus Reifenumfang, rote Marke am Limit von Stufe H), Drehzahl, Gang,
   Akku-Tankanzeige (geschätzt über die NMC-Zellkurve), Prozentbalken für Leistung, Akkustrom, Phasenstrom,
   Feldschwächung, Gasgriff und Temperatur, dazu 12 V und Fehlercode
+- **GPS-Vergleich:** Roller- und GPS-Tacho nebeneinander, Abweichung, 60-Sekunden-Verlauf und eine
+  Kalibrier-Messung, die den echten Reifenumfang bestimmt und übernimmt
 - **AutoConnect** beim Start (Android-App) und automatisches Neuverbinden, z. B. nach „Zündung aus/an“
 - **Tacho-Faktor** wird aus dem Reifenumfang berechnet und auf Wunsch am Controller übernommen,
   mit GPS-Nachkalibrierung
@@ -104,6 +107,7 @@ Höchstgeschwindigkeit müssen zur Zulassung deines Fahrzeugs passen.
 npm test                      # spielt einen echten Mitschnitt durch das Protokoll-Modul
 node test/bridge.test.cjs     # Android-Brücke mit gefälschter nativer Seite (Server auf :8766 im Ordner android/app/src/main/assets/www)
 node test/live.test.cjs       # Live-Ansicht, AutoConnect, Neuverbinden (Server auf :8765)
+node test/gps.test.cjs        # GPS-Vergleich, Kalibrier-Messung, Positions-Fallback (Server auf :8765, ca. 90 s)
 node test/tacho.test.cjs      # Reifenumfang → Tacho-Faktor → schreiben (Server auf :8765)
 node test/e2e.test.cjs        # Browser-Test gegen den simulierten Controller (braucht Playwright + laufenden Server auf :8765)
 node tools/make-demo-data.js  # demo-data.js aus dem Mitschnitt neu erzeugen

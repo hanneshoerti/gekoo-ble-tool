@@ -9,14 +9,15 @@
   :root {
     --bg: #0f1419; --panel: #171e26; --panel2: #1e2731; --line: #2a3542;
     --text: #e6edf3; --muted: #8b98a5; --accent: #3fb6a8; --accent-ink: #062320;
-    --warn: #e3a83c; --bad: #e5534b; --ok: #57ab5a; --chg: #2b3d55;
+    --warn: #e3a83c; --bad: #e5534b; --ok: #57ab5a; --chg: #2b3d55; --gps: #6ea8ff;
     --mono: ui-monospace, "SF Mono", "Roboto Mono", Menlo, monospace;
   }
   @media (prefers-color-scheme: light) {
     :root { --bg: #f4f6f8; --panel: #fff; --panel2: #eef1f4; --line: #d6dce2; --text: #17202a;
-            --muted: #5b6875; --accent: #12796e; --accent-ink: #fff; --chg: #dbe8f8; }
+            --muted: #5b6875; --accent: #12796e; --accent-ink: #fff; --chg: #dbe8f8; --gps: #2f6fd6; }
   }
   * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
   html, body { margin: 0; background: var(--bg); color: var(--text);
     font: 16px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
   header { position: sticky; top: 0; z-index: 5; background: var(--bg); border-bottom: 1px solid var(--line);
@@ -34,7 +35,8 @@
   button:disabled { opacity: .45; cursor: not-allowed; }
   nav { display: flex; gap: 4px; margin-top: 10px; overflow-x: auto; }
   nav button { border: 0; background: none; border-radius: 0; border-bottom: 2px solid transparent;
-    color: var(--muted); padding: 10px 12px; min-height: 0; }
+    color: var(--muted); padding: 10px 9px; min-height: 0; font-size: 15px; white-space: nowrap; }
+  @media (max-width: 380px) { nav button { padding: 10px 5px; font-size: 14px; } }
   nav button[aria-selected="true"] { color: var(--text); border-bottom-color: var(--accent); }
   main { padding: 16px; max-width: 900px; margin: 0 auto 120px; }
   section[hidden] { display: none; }
@@ -127,6 +129,31 @@
   .dlg label { display: flex; gap: 10px; align-items: flex-start; font-size: 14px; margin-top: 12px; }
   .dlg input[type=checkbox] { width: 20px; height: 20px; margin-top: 1px; flex: none; }
 
+  /* GPS-Vergleich */
+  .cmp { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
+  .cmp-card { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 10px 10px 12px; text-align: center; }
+  .cmp-card .k { font-size: 13px; color: var(--muted); }
+  .cmp-card svg { width: 100%; display: block; }
+  .cmp-card .num { font: 600 34px/1 var(--mono); font-variant-numeric: tabular-nums; }
+  .cmp-card .num small { font: 13px system-ui; color: var(--muted); margin-left: 3px; }
+  .cmp-card.gps .arc-val { stroke: var(--gps); }
+  .cmp-card.gps .num { color: var(--gps); }
+  .needle { transform-box: view-box; transform-origin: 150px 150px; transition: transform .2s linear; }
+  .needle line { stroke: var(--bad); stroke-width: 4; stroke-linecap: round; }
+  .cmp-diff { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; margin-bottom: 10px;
+    display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+  .cmp-diff b { font: 600 24px var(--mono); font-variant-numeric: tabular-nums; }
+  .cmp-diff span { color: var(--muted); font-size: 14px; }
+  .chart-card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; margin-bottom: 10px; }
+  .chart-card svg { width: 100%; display: block; }
+  .chart-card .legend { display: flex; gap: 14px; font-size: 13px; color: var(--muted); margin-top: 4px; }
+  .chart-card .legend i { display: inline-block; width: 14px; height: 3px; border-radius: 2px; vertical-align: middle; margin-right: 5px; }
+  .grid-line { stroke: var(--line); stroke-width: 1; }
+  .grid-label { fill: var(--muted); font: 10px system-ui, sans-serif; }
+  .line-ctl { fill: none; stroke: var(--accent); stroke-width: 2.2; stroke-linejoin: round; }
+  .line-gps { fill: none; stroke: var(--gps); stroke-width: 2.2; stroke-linejoin: round; }
+  .gps-ok { color: var(--ok); } .gps-warn { color: var(--warn); } .gps-bad { color: var(--bad); }
+
   /* Settings / Log */
   h2.sect { font-size: 13px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .6px; margin: 4px 2px 8px; }
   .form { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 4px 14px; margin-bottom: 14px; }
@@ -154,9 +181,10 @@
   </div>
   <nav role="tablist">
     <button role="tab" data-tab="live" aria-selected="true">Live</button>
+    <button role="tab" data-tab="gps" aria-selected="false">GPS</button>
     <button role="tab" data-tab="params" aria-selected="false">Parameter</button>
     <button role="tab" data-tab="settings" aria-selected="false">Einstellungen</button>
-    <button role="tab" data-tab="log" aria-selected="false">Protokoll</button>
+    <button role="tab" data-tab="log" aria-selected="false">Log</button>
   </nav>
 </header>
 
@@ -221,7 +249,7 @@
     <h2 class="sect">Fahrzeug</h2>
     <div class="form">
       <div class="row"><span>Reifenumfang<small>Für die km/h-Berechnung. Kreidestrich, eine Radumdrehung, messen.</small></span>
-        <input type="number" id="tireCm" min="50" max="300" step="1"> cm</div>
+        <input type="number" id="tireCm" min="50" max="300" step="0.1"> cm</div>
       <div class="row"><span>Tacho-Bezugsumfang<small>Mit diesem Umfang rechnet der Fahrzeug-Tacho bei Faktor 100. Beim NIU M+ gemessen: 97,1 cm. Mit „GPS nachkalibrieren“ für jedes Fahrzeug bestimmbar.</small></span>
         <input type="number" id="refCm" min="30" max="300" step="0.1"> cm</div>
       <div class="row"><span>Akku-Zellen in Reihe<small>Für Akkuanzeige und Warnungen. 48 V = 13S, 60 V = 16S, 72 V = 20S.</small></span>
@@ -250,6 +278,29 @@
     <div class="bar"><a id="demoLink" href="#demo"><button tabindex="-1">Demo-Modus starten</button></a></div>
     <div class="note" style="border-left-color:var(--line)">Quellcode, Protokoll-Beschreibung und Lizenz (MIT): siehe README im Projektordner.
       Diese App ist ein inoffizielles Community-Projekt und hat nichts mit dem Hersteller zu tun.</div>
+  </section>
+
+  <section id="tab-gps" hidden>
+    <div class="cmp">
+      <div class="cmp-card"><div class="k">Roller (Controller)</div><svg id="gCtl" viewBox="0 0 300 212"></svg>
+        <div class="num"><span id="cmpCtl">–</span><small>km/h</small></div></div>
+      <div class="cmp-card gps"><div class="k">GPS</div><svg id="gGps" viewBox="0 0 300 212"></svg>
+        <div class="num"><span id="cmpGps">–</span><small>km/h</small></div></div>
+    </div>
+    <div class="cmp-diff"><b id="cmpDiff">–</b><span id="cmpDiffText">Abweichung Roller gegenüber GPS</span></div>
+    <div class="chart-card">
+      <svg id="cmpChart" viewBox="0 0 320 130" preserveAspectRatio="none"></svg>
+      <div class="legend"><span><i style="background:var(--accent)"></i>Roller</span><span><i style="background:var(--gps)"></i>GPS</span><span style="margin-left:auto">letzte 60 s</span></div>
+    </div>
+    <div class="form">
+      <div class="row"><span>GPS-Signal<small id="gpsStatus">Wird beim Öffnen dieser Seite gestartet.</small></span><b id="gpsAcc" style="font-family:var(--mono)">–</b></div>
+      <div class="row"><span>Kalibrier-Messung<small id="measInfo">Gleichmäßig über 15 km/h fahren, z. B. 30 und 45 km/h je 20 Sekunden. Gezählt werden nur ruhige Abschnitte mit gutem GPS.</small></span>
+        <button id="measBtn">Messung starten</button></div>
+      <div class="row" id="measResultRow" hidden><span>Ergebnis<small id="measResult"></small></span>
+        <button class="primary" id="measApply">Übernehmen</button></div>
+    </div>
+    <div class="note" style="border-left-color:var(--line)">Handy fest montieren und während der Fahrt nicht bedienen. GPS ist im Freien
+      am genauesten, unter Bäumen, Brücken oder zwischen Häusern schwankt es. Der Roller-Wert kommt aus Drehzahl × Reifenumfang.</div>
   </section>
 
   <section id="tab-log" hidden>
@@ -326,6 +377,7 @@ function renderTacho() {
 document.querySelectorAll('nav button').forEach((b) => b.addEventListener('click', () => {
   document.querySelectorAll('nav button').forEach((x) => x.setAttribute('aria-selected', x === b));
   document.querySelectorAll('main > section').forEach((s) => (s.hidden = s.id !== 'tab-' + b.dataset.tab));
+  if (b.dataset.tab === 'gps') gpsStart(); else gpsStop();
 }));
 
 // ---------- Meldungen & Log
@@ -579,6 +631,8 @@ function throttleRange() {
 
 let lastGear = '';
 function showLive(d) {
+  ctlNow = { kmh: d.kmh, t: Date.now() };
+  if (gps.active) updateCompare();
   const L = limits();
   $('kmh').textContent = fmt(d.kmh, 0);
   const frac = clamp01(d.kmh / speedoMax);
@@ -612,6 +666,189 @@ function showLive(d) {
   $('errorCode').textContent = d.errorCode === 0 ? 'keiner' : '0x' + d.errorCode.toString(16);
   $('errTile').classList.toggle('bad', d.errorCode !== 0);
 }
+
+// ---------- GPS-Vergleich
+const gps = { active: false, watch: null, sim: null, tick: null, speed: null, acc: null, t: 0, src: '', last: null };
+let ctlNow = { kmh: null, t: 0 };
+const hist = [];                 // {ctl, gps} alle 0,5 s, 60 s lang
+let meas = null;                 // laufende Kalibrier-Messung: { ratios: [] }
+let setCtlGauge = () => {}, setGpsGauge = () => {};
+
+function makeGauge(svg, max) {
+  const [x0, y0] = pt(-SWEEP / 2, R), [x1, y1] = pt(SWEEP / 2, R);
+  const arc = `M${x0.toFixed(1)},${y0.toFixed(1)} A${R},${R} 0 1 1 ${x1.toFixed(1)},${y1.toFixed(1)}`;
+  let g = `<path class="arc-bg" d="${arc}"/><path class="arc-val" pathLength="100" stroke-dasharray="0 100" d="${arc}"/>`;
+  for (let v = 0; v <= max; v += 10) {
+    const deg = -SWEEP / 2 + (SWEEP * v) / max, major = v % 20 === 0;
+    const [a1, b1] = pt(deg, R - 12), [a2, b2] = pt(deg, R - (major ? 28 : 20));
+    g += `<line class="tick${major ? ' major' : ''}" x1="${a1.toFixed(1)}" y1="${b1.toFixed(1)}" x2="${a2.toFixed(1)}" y2="${b2.toFixed(1)}"/>`;
+    if (major) { const [tx, ty] = pt(deg, R - 46); g += `<text class="tick-label" style="font-size:20px" x="${tx.toFixed(1)}" y="${ty.toFixed(1)}">${v}</text>`; }
+  }
+  g += `<g class="needle"><line x1="150" y1="166" x2="150" y2="44"/></g><circle class="hub" cx="150" cy="150" r="10"/>`;
+  svg.innerHTML = g;
+  const needle = svg.querySelector('.needle'), val = svg.querySelector('.arc-val');
+  return (kmh) => {
+    const f = clamp01((kmh || 0) / max);
+    needle.style.transform = `rotate(${(-SWEEP / 2 + SWEEP * f).toFixed(1)}deg)`;
+    val.setAttribute('stroke-dasharray', `${(f * 100).toFixed(2)} 100`);
+  };
+}
+
+function gpsStatus(text, cls = '') {
+  $('gpsStatus').textContent = text;
+  $('gpsStatus').className = cls;
+}
+
+function gpsStart() {
+  if (gps.active) return;
+  gps.active = true;
+  setCtlGauge = makeGauge($('gCtl'), speedoMax);
+  setGpsGauge = makeGauge($('gGps'), speedoMax);
+  gps.tick = setInterval(sampleHistory, 500);
+  if (location.hash === '#demo') {                 // Demo: GPS aus Controller-Wert simulieren
+    gps.sim = setInterval(() => {
+      if (ctlNow.kmh == null) return;
+      onGpsFix({ speed: Math.max(0, ctlNow.kmh * (130.4 / settings.tireCm) + (Math.random() - 0.5) * 0.6) / 3.6, accuracy: 4 }, 'Demo');
+    }, 1000);
+    gpsStatus('Demo-Modus: simuliertes GPS (echter Umfang 130,4 cm)', 'gps-ok');
+    return;
+  }
+  if (!navigator.geolocation) return gpsStatus('Dieser Browser kann kein GPS.', 'gps-bad');
+  gpsStatus('Warte auf GPS-Signal … (im Freien geht es schneller)', 'gps-warn');
+  gps.watch = navigator.geolocation.watchPosition(
+    (pos) => onGpsFix(pos.coords, null, pos.timestamp),
+    (e) => gpsStatus(e.code === 1 ? 'Standort-Berechtigung verweigert. In den App-/Browser-Einstellungen erlauben.' : 'GPS-Fehler: ' + e.message, 'gps-bad'),
+    { enableHighAccuracy: true, maximumAge: 0, timeout: 20000 });
+}
+
+function gpsStop() {
+  if (!gps.active) return;
+  gps.active = false;
+  if (gps.watch != null) navigator.geolocation.clearWatch(gps.watch);
+  clearInterval(gps.sim); clearInterval(gps.tick);
+  gps.watch = gps.sim = gps.tick = null;
+  gps.last = null;
+}
+
+// Abstand zweier Koordinaten in Metern
+function distM(a, b) {
+  const r = Math.PI / 180, dLat = (b.lat - a.lat) * r, dLon = (b.lon - a.lon) * r;
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(a.lat * r) * Math.cos(b.lat * r) * Math.sin(dLon / 2) ** 2;
+  return 2 * 6371000 * Math.asin(Math.sqrt(h));
+}
+
+function onGpsFix(c, src, ts = Date.now()) {
+  let v = c.speed, source = src || 'Doppler';
+  if (v == null || Number.isNaN(v)) {               // Gerät liefert keine Geschwindigkeit → aus Positionen rechnen
+    const here = { lat: c.latitude, lon: c.longitude, t: ts };
+    v = gps.last && ts > gps.last.t ? distM(gps.last, here) / ((ts - gps.last.t) / 1000) : null;
+    gps.last = here;
+    source = 'aus Positionen';
+  }
+  gps.speed = v == null ? null : v * 3.6;
+  gps.acc = c.accuracy;
+  gps.t = Date.now();
+  gps.src = source;
+  const q = gps.acc <= 8 ? 'gps-ok' : gps.acc <= 20 ? 'gps-warn' : 'gps-bad';
+  $('gpsAcc').textContent = gps.acc != null ? `± ${Math.round(gps.acc)} m` : '–';
+  $('gpsAcc').className = q;
+  if (!src) gpsStatus(`Empfang ${q === 'gps-ok' ? 'gut' : q === 'gps-warn' ? 'mittel' : 'schlecht'} · Geschwindigkeit ${source}`, q);
+  updateCompare();
+  measureSample();
+}
+
+const fresh = () => ({ ctl: Date.now() - ctlNow.t < 2000, gps: Date.now() - gps.t < 3000 });
+
+function updateCompare() {
+  const f = fresh();
+  const c = f.ctl ? ctlNow.kmh : null, g = f.gps ? gps.speed : null;
+  setCtlGauge(c); setGpsGauge(g);
+  $('cmpCtl').textContent = c == null ? '–' : fmt(c, 1);
+  $('cmpGps').textContent = g == null ? '–' : fmt(g, 1);
+  if (c == null || g == null || g < 3) {
+    $('cmpDiff').textContent = '–';
+    $('cmpDiffText').textContent = c == null ? 'Roller nicht verbunden' : g == null ? 'Kein GPS-Wert' : 'Abweichung erst ab 3 km/h';
+    return;
+  }
+  const d = c - g, pct = (d / g) * 100;
+  $('cmpDiff').textContent = `${d >= 0 ? '+' : '−'}${fmt(Math.abs(d), 1)} km/h`;
+  $('cmpDiffText').textContent = `${d >= 0 ? '+' : '−'}${fmt(Math.abs(pct), 1)} % · Roller zeigt ${d >= 0 ? 'mehr' : 'weniger'} als GPS`;
+}
+
+function sampleHistory() {
+  const f = fresh();
+  hist.push({ ctl: f.ctl ? ctlNow.kmh : null, gps: f.gps ? gps.speed : null });
+  if (hist.length > 120) hist.shift();
+  drawChart();
+}
+
+function drawChart() {
+  const W = 320, H = 130, L = 26, T = 6, B = 16;
+  const vals = hist.flatMap((h) => [h.ctl, h.gps]).filter((v) => v != null);
+  const top = Math.max(30, Math.ceil((Math.max(0, ...vals) + 2) / 10) * 10);
+  const y = (v) => T + (H - T - B) * (1 - v / top), x = (i) => L + ((W - L - 4) * i) / 119;
+  let g = '';
+  for (let v = 0; v <= top; v += top > 60 ? 20 : 10) {
+    g += `<line class="grid-line" x1="${L}" x2="${W - 4}" y1="${y(v).toFixed(1)}" y2="${y(v).toFixed(1)}"/>`;
+    g += `<text class="grid-label" x="${L - 4}" y="${(y(v) + 3).toFixed(1)}" text-anchor="end">${v}</text>`;
+  }
+  const off = 120 - hist.length;
+  const line = (k) => {
+    let d = '', pen = false;
+    hist.forEach((h, i) => {
+      if (h[k] == null) { pen = false; return; }
+      d += `${pen ? 'L' : 'M'}${x(i + off).toFixed(1)},${y(h[k]).toFixed(1)} `; pen = true;
+    });
+    return d ? `<path class="line-${k}" d="${d}"/>` : '';
+  };
+  $('cmpChart').innerHTML = g + line('ctl') + line('gps');
+}
+
+// Kalibrier-Messung: Verhältnis GPS / Roller bei ruhiger Fahrt sammeln
+function steady() {
+  if (hist.length < 4) return false;
+  const a = hist[hist.length - 1], b = hist[hist.length - 3];   // vor ca. 1 s
+  return a.ctl != null && b.ctl != null && a.gps != null && b.gps != null
+    && Math.abs(a.ctl - b.ctl) < 1.5 && Math.abs(a.gps - b.gps) < 1.5;
+}
+function measureSample() {
+  if (!meas) return;
+  const f = fresh();
+  if (f.ctl && f.gps && gps.acc <= 15 && gps.speed >= 15 && ctlNow.kmh >= 15 && steady()) meas.ratios.push(gps.speed / ctlNow.kmh);
+  showMeasurement();
+}
+const median = (a) => { const s = [...a].sort((x, y) => x - y), m = s.length >> 1; return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2; };
+function showMeasurement() {
+  const n = meas.ratios.length;
+  if (n < 20) {
+    $('measInfo').textContent = `Messung läuft · ${n} von mind. 20 Messpunkten (nur ruhige Fahrt über 15 km/h, GPS besser als ± 15 m).`;
+    $('measResultRow').hidden = true;
+    return;
+  }
+  const m = median(n > 0 ? meas.ratios : [1]);
+  const spread = Math.sqrt(meas.ratios.reduce((a, r) => a + (r - m) ** 2, 0) / n) * 100;
+  const newTire = Math.round(settings.tireCm * m * 10) / 10;
+  meas.result = newTire;
+  $('measInfo').textContent = `${n} Messpunkte · Streuung ± ${fmt(spread, 1)} %${spread > 3 ? ' – eher unruhig, länger messen' : ''}`;
+  $('measResult').textContent = `Roller ${m < 1 ? 'zu schnell' : 'zu langsam'} um ${fmt(Math.abs(1 / m - 1) * 100, 1)} % · echter Reifenumfang ≈ ${fmt(newTire, 1)} cm (eingestellt ${fmt(settings.tireCm, 1)} cm)`;
+  $('measApply').textContent = `${fmt(newTire, 1)} cm übernehmen`;
+  $('measResultRow').hidden = false;
+}
+$('measBtn').onclick = () => {
+  if (meas) { meas = null; $('measBtn').textContent = 'Messung starten'; return; }
+  meas = { ratios: [] };
+  $('measBtn').textContent = 'Messung stoppen';
+  showMeasurement();
+};
+$('measApply').onclick = () => {
+  if (!meas?.result) return;
+  settings.tireCm = meas.result; settings.configured = true;
+  $('tireCm').value = settings.tireCm;
+  saveSettings(); renderParams(); renderTacho(); buildSpeedo();
+  meas = null; $('measBtn').textContent = 'Messung starten'; $('measResultRow').hidden = true;
+  $('measInfo').textContent = `Reifenumfang ${fmt(settings.tireCm, 1)} cm übernommen. Für den Fahrzeug-Tacho jetzt unter Einstellungen den Tacho-Faktor übernehmen (${tachoFactor()}).`;
+  toast(`Reifenumfang ${fmt(settings.tireCm, 1)} cm übernommen`, 'ok');
+};
 
 // ---------- Parameter
 let original = null;   // zuletzt gelesene Wörter
