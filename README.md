@@ -35,6 +35,8 @@ Protocol documented in [PROTOCOL.md](PROTOCOL.md).*
   mit GPS-Nachkalibrierung
 - **Parameter:** lesen, verständlich auf Deutsch erklärt, ändern, mit Prüfsumme schreiben und zur Kontrolle
   zurücklesen. Vor dem Schreiben gibt es eine Übersicht aller Änderungen und Warnungen bei riskanten Werten.
+- **Vergleich:** Nach jedem Lesen zeigt die App, was sich seit dem letzten Mal am Controller geändert hat
+  (z. B. durch die Original-App). So lassen sich unbekannte Felder ohne Bluetooth-Mitschnitt zuordnen.
 - **Backup** als JSON herunterladen und wiederherstellen
 - **Protokoll-Log** für Fehlersuche und zum Weiterentschlüsseln
 - **Demo-Modus** ohne Roller: `index.html#demo` (simulierter Controller mit echten Messdaten)
@@ -108,6 +110,7 @@ npm test                      # spielt einen echten Mitschnitt durch das Protoko
 node test/bridge.test.cjs     # Android-Brücke mit gefälschter nativer Seite (Server auf :8766 im Ordner android/app/src/main/assets/www)
 node test/live.test.cjs       # Live-Ansicht, AutoConnect, Neuverbinden (Server auf :8765)
 node test/gps.test.cjs        # GPS-Vergleich, Kalibrier-Messung, Positions-Fallback (Server auf :8765, ca. 90 s)
+node test/vergleich.test.cjs  # skalierte Parameter, Warnungen Gasgriff, Vergleich seit letztem Lesen (ca. 40 s)
 node test/tacho.test.cjs      # Reifenumfang → Tacho-Faktor → schreiben (Server auf :8765)
 node test/e2e.test.cjs        # Browser-Test gegen den simulierten Controller (braucht Playwright + laufenden Server auf :8765)
 node tools/make-demo-data.js  # demo-data.js aus dem Mitschnitt neu erzeugen

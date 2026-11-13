@@ -129,6 +129,15 @@ export const PARAMS = [
     help: 'Höchster Strom aus dem Akku. Begrenzt die Leistung und schont Akku und BMS.' },
   { i: 1, name: 'Max. Phasenstrom', unit: 'A', min: 10, max: 260, conf: 'ok', group: 'Strom',
     help: 'Höchster Strom im Motor. Bestimmt die Zugkraft beim Anfahren. Zu hoch = Motor wird heiß.' },
+  // scale = Rohwert pro Einheit (Anzeige = Rohwert ÷ scale), decimals = Nachkommastellen
+  { i: 4, name: 'Gasgriff: Leerlauf-Spannung', unit: 'V', scale: 2450, decimals: 2, min: 0.3, max: 2.5, conf: 'ok', group: 'Gasgriff',
+    help: '„Idle throttle voltage“. Darunter gilt der Griff als „kein Gas“. Muss etwas ÜBER der Ruhespannung des Griffs liegen, sonst fährt der Roller von selbst los.' },
+  { i: 3, name: 'Gasgriff: Vollgas-Spannung', unit: 'V', scale: 2450, decimals: 2, min: 1.5, max: 4.8, conf: 'ok', group: 'Gasgriff',
+    help: '„Full throttle voltage“. Ab hier gibt der Controller Vollgas. Sollte etwas UNTER der höchsten Spannung des Griffs liegen, sonst erreichst du nie Vollgas.' },
+  { i: 5, name: 'Sanftanlauf', unit: 's', scale: 4096 / 15, decimals: 2, min: 0, max: 20, conf: 'ok', group: 'Gasgriff',
+    help: '„Soft start time“. So lange braucht der Controller, um nach dem Gasgeben auf volle Leistung hochzufahren. Kleiner = direkter.' },
+  { i: 6, name: 'Sanftanlauf rückwärts', unit: 's', scale: 4096 / 15, decimals: 2, min: 0, max: 20, conf: 'ok', group: 'Rückwärtsgang',
+    help: '„Soft start time“ im Abschnitt Reverse. Anlaufzeit im Rückwärtsgang.' },
   { i: 11, name: 'H: Höchstdrehzahl', unit: 'rpm', min: 0, max: 3000, conf: 'ok', group: 'Fahrstufen', speed: true,
     help: 'Drehzahlgrenze in Stufe H (schnell).' },
   { i: 12, name: 'M: Höchstdrehzahl', unit: 'rpm', min: 0, max: 3000, conf: 'ok', group: 'Fahrstufen', speed: true,
@@ -191,3 +200,8 @@ export const PARAMS = [
 ];
 
 export const READ_ONLY = new Set([60, 63]); // 60 = Kennung (= Antwort auf 0x17), 63 = Prüfsumme
+
+/** Rohwert ↔ Anzeigeeinheit (für Parameter mit scale) */
+export const toUnit = (p, raw) => (p?.scale ? raw / p.scale : raw);
+export const fromUnit = (p, value) => Math.round(value * (p?.scale || 1));
+export const fmtUnit = (p, raw) => (p?.scale ? toUnit(p, raw).toFixed(p.decimals ?? 2) : String(raw));

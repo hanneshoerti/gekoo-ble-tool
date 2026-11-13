@@ -242,6 +242,7 @@
       <label class="switch"><input type="checkbox" id="expert"> Expertenmodus</label>
     </div>
     <div id="paramState" class="note" style="border-left-color:var(--line)">Noch keine Parameter gelesen.</div>
+    <div class="note" id="extDiff" style="border-left-color:var(--gps)" hidden></div>
     <div id="paramList"></div>
   </section>
 
@@ -329,7 +330,7 @@
 <script src="android-bridge.js"></script>
 <script type="module">
 import { SERVICE_UUID, CHAR_UUID, CMD, CHUNK_DELAY_MS, FrameParser, decodeRealtime, wordsFromBlock,
-         checksumOk, buildWriteFrame, chunks, PARAMS, READ_ONLY, SCALE } from './gekoo.js';
+         checksumOk, buildWriteFrame, chunks, PARAMS, READ_ONLY, SCALE, toUnit, fromUnit, fmtUnit } from './gekoo.js';
 
 const $ = (id) => document.getElementById(id);
 const hex = (b) => [...b].map((x) => x.toString(16).padStart(2, '0')).join(' ');
@@ -630,7 +631,9 @@ function throttleRange() {
 }
 
 let lastGear = '';
+const thrSeen = { min: Infinity, max: -Infinity };   // gemessene Gasgriff-Spannungen seit dem Start
 function showLive(d) {
+  if (d.throttleV > 0.2 && d.throttleV < 5) { thrSeen.min = Math.min(thrSeen.min, d.throttleV); thrSeen.max = Math.max(thrSeen.max, d.throttleV); }
   ctlNow = { kmh: d.kmh, t: Date.now() };
   if (gps.active) updateCompare();
   const L = limits();
@@ -854,7 +857,7 @@ $('measApply').onclick = () => {
 let original = null;   // zuletzt gelesene Wörter
 let edited = null;     // Arbeitskopie
 const known = new Map(PARAMS.map((p) => [p.i, p]));
-const GROUPS = ['Strom', 'Fahrstufen', 'Motor', 'Spannung', 'Rekuperation', 'Tacho', 'Akku', 'Experte', 'Unbekannt'];
+const GROUPS = ['Strom', 'Gasgriff', 'Fahrstufen', 'Motor', 'Spannung', 'Rekuperation', 'Rückwärtsgang', 'Tacho', 'Akku', 'Experte', 'Unbekannt'];
 
 // Lesen/Schreiben strikt nacheinander, Live-Abfrage solange pausiert
 let opChain = Promise.resolve(), opActive = 0;
@@ -881,8 +884,42 @@ async function readParamsRaw() {
 }
 const readParams = () => exclusive(readParamsRaw);
 
+// Letzten gelesenen Stand merken, um Änderungen von außen (z. B. durch die Original-App) zu erkennen
+const LAST_KEY = 'gekoo-last-read';
+const isDemo = location.hash === '#demo';      // Demo: nur im Speicher merken, nicht dauerhaft
+let lastRead = null;
+const loadLast = () => {
+  if (lastRead || isDemo) return lastRead;
+  try { const d = JSON.parse(localStorage.getItem(LAST_KEY)); return d?.words?.length === 64 ? d : null; } catch { return null; }
+};
+const saveLast = (words) => {
+  lastRead = { t: Date.now(), words: words.slice() };
+  if (!isDemo) try { localStorage.setItem(LAST_KEY, JSON.stringify(lastRead)); } catch {}
+};
+
+function showExternalDiff(prev, now) {
+  const box = $('extDiff');
+  const idx = prev ? [...Array(63).keys()].filter((i) => prev.words[i] !== now[i]) : [];
+  if (!idx.length) { box.hidden = true; return; }
+  const when = new Date(prev.t).toLocaleString('de-AT', { dateStyle: 'short', timeStyle: 'short' });
+  const lines = idx.map((i) => {
+    const p = known.get(i), a = prev.words[i], b = now[i];
+    if (p) return `<li><b>${p.name}</b>: ${fmtUnit(p, a).replace('.', ',')} → ${fmtUnit(p, b).replace('.', ',')} ${p.unit} <span style="color:var(--muted)">(Wort ${i})</span></li>`;
+    const bits = [...Array(16).keys()].filter((k) => ((a ^ b) >> k) & 1).map((k) => `Bit ${k} ${(b >> k) & 1 ? 'an' : 'aus'}`);
+    return `<li><b>Wort ${i}</b> (unbekannt): ${a} → ${b} <span style="color:var(--muted)">· 0x${a.toString(16)} → 0x${b.toString(16)} · ${bits.join(', ')}</span></li>`;
+  });
+  box.innerHTML = `<b>Seit dem letzten Lesen (${when}) am Controller geändert:</b><ul style="margin:6px 0 8px;padding-left:18px">${lines.join('')}</ul>
+    <button id="extDiffHide">Ausblenden</button>`;
+  box.hidden = false;
+  $('extDiffHide').onclick = () => (box.hidden = true);
+  for (const i of idx) log('Δ', [], `Wort ${i}: ${prev.words[i]} → ${now[i]} (0x${prev.words[i].toString(16)} → 0x${now[i].toString(16)})`);
+}
+
 async function loadParams() {
+  const prev = loadLast();
   original = await readParams();
+  showExternalDiff(prev, original);
+  saveLast(original);
   edited = original.slice();
   if (original[34] >= 1 && original[34] <= 60) { settings.polePairs = original[34]; $('polePairs').value = original[34]; saveSettings(); }
   $('paramState').textContent = `Gelesen um ${new Date().toLocaleTimeString('de-AT')} · Prüfsumme ok · Kennung ${original[60]}`;
@@ -956,10 +993,12 @@ function paramRow(p) {
   const row = document.createElement('div');
   row.className = 'prm';
   const ro = READ_ONLY.has(p.i) || (!$('expert').checked && (p.group === 'Experte'));
+  const dec = p.scale ? (p.decimals ?? 2) : 0, step = p.scale ? 1 / 10 ** dec : 1;
+  const show = (raw) => fmtUnit(p, raw).replace('.', ',');
   row.innerHTML = `
     <div><div class="name">${p.name}</div>
-      <div class="meta">Wort ${p.i} · Original ${original[p.i]}${p.unit ? ' ' + p.unit : ''}</div></div>
-    <div class="inp"><input type="number" inputmode="numeric" step="1" min="${p.min}" max="${p.max}" value="${edited[p.i]}" ${ro ? 'disabled' : ''}><span class="u">${p.unit}</span></div>
+      <div class="meta">Wort ${p.i} · Original ${show(original[p.i])}${p.unit ? ' ' + p.unit : ''}${p.scale ? ` (roh ${original[p.i]})` : ''}</div></div>
+    <div class="inp"><input type="number" inputmode="${p.scale ? 'decimal' : 'numeric'}" step="${step}" min="${p.min}" max="${p.max}" value="${fmtUnit(p, edited[p.i])}" ${ro ? 'disabled' : ''}><span class="u">${p.unit}</span></div>
     <div class="help">${p.help}</div>`;
   const input = row.querySelector('input');
   const extra = document.createElement('div');
@@ -970,11 +1009,17 @@ function paramRow(p) {
     extra.textContent = p.speed ? speedHint(edited[p.i]) : '';
   };
   input.addEventListener('input', () => {
-    const v = Number(input.value);
-    const ok = input.value !== '' && Number.isInteger(v) && v >= p.min && v <= p.max;
+    const v = Number(input.value.replace(',', '.'));
+    const ok = input.value !== '' && Number.isFinite(v) && (p.scale || Number.isInteger(v)) && v >= p.min && v <= p.max;
     input.classList.toggle('invalid', !ok);
-    if (!ok) { extra.className = 'err'; extra.textContent = `Erlaubt: ganze Zahl von ${p.min} bis ${p.max}`; return; }
-    edited[p.i] = v; refresh(); updateSavebar();
+    if (!ok) {
+      extra.className = 'err';
+      extra.textContent = `Erlaubt: ${p.scale ? 'Zahl' : 'ganze Zahl'} von ${String(p.min).replace('.', ',')} bis ${String(p.max).replace('.', ',')}`;
+      return;
+    }
+    // Unveränderte Anzeige (z. B. 0,88) lässt den Rohwert exakt, wie er ist
+    edited[p.i] = p.scale && fmtUnit(p, original[p.i]) === v.toFixed(dec) ? original[p.i] : fromUnit(p, v);
+    refresh(); updateSavebar();
   });
   refresh();
   return row;
@@ -996,6 +1041,15 @@ function warnings(w) {
   if (w[57] > full + 0.5) out.push(`Rekuperations-Spannungsgrenze ${w[57]} V liegt über der Ladeschlussspannung eines ${cells}S-Akkus (${v1(full)} V).`);
   if (w[26] < empty) out.push(`Unterspannung ${w[26]} V ist für einen ${cells}S-Akku sehr niedrig (unter ${v1(empty)} V, Tiefentladung).`);
   if (w[26] > cells * 3.6) out.push(`Unterspannung ${w[26]} V ist für einen ${cells}S-Akku sehr hoch – der Controller schaltet dann schon bei halbvollem Akku ab.`);
+  const idleV = w[4] / 2450, fullV = w[3] / 2450, v2 = (x) => fmt(x, 2);
+  // Ruhespannung nur werten, wenn der Griff in dieser Sitzung wirklich losgelassen war (< 1,6 V)
+  if (thrSeen.min < 1.6 && idleV <= thrSeen.min + 0.05)
+    out.push(`ACHTUNG: Leerlauf-Spannung ${v2(idleV)} V liegt nicht über der gemessenen Ruhespannung deines Gasgriffs (${v2(thrSeen.min)} V). Der Roller kann von selbst losfahren!`);
+  else if (idleV < 0.7) out.push(`Leerlauf-Spannung ${v2(idleV)} V ist sehr niedrig. Liegt sie unter der Ruhespannung des Gasgriffs, fährt der Roller von selbst los.`);
+  if (thrSeen.max > 2.5 && fullV > thrSeen.max)
+    out.push(`Vollgas-Spannung ${v2(fullV)} V liegt über dem höchsten gemessenen Wert deines Gasgriffs (${v2(thrSeen.max)} V) – du erreichst so nie ganz Vollgas.`);
+  if (fullV < idleV + 0.8) out.push(`Vollgas-Spannung ${v2(fullV)} V liegt zu nah an der Leerlauf-Spannung ${v2(idleV)} V.`);
+  if (w[5] / (4096 / 15) > 3) out.push(`Sanftanlauf ${fmt(w[5] / (4096 / 15), 1)} s ist sehr träge.`);
   if (w[21] > 80) out.push(`Feldschwächung ${w[21]} A ist sehr hoch – Motor kann überhitzen.`);
   if (w[1] > 150) out.push(`Phasenstrom ${w[1]} A ist für einen Roller-Nabenmotor sehr hoch.`);
   if (w[0] > 60) out.push(`Batteriestrom ${w[0]} A – prüfe, ob Akku/BMS das dauerhaft können.`);
@@ -1009,7 +1063,8 @@ function warnings(w) {
 $('reviewBtn').onclick = () => {
   $('diffBody').innerHTML = changes().map((i) => {
     const p = known.get(i);
-    return `<tr><td>${p ? p.name : 'Wort ' + i}</td><td class="n">${original[i]}</td><td class="n">${edited[i]} ${p?.unit ?? ''}</td></tr>`;
+    const show = (raw) => fmtUnit(p, raw).replace('.', ',');
+    return `<tr><td>${p ? p.name : 'Wort ' + i}</td><td class="n">${show(original[i])}</td><td class="n">${show(edited[i])} ${p?.unit ?? ''}</td></tr>`;
   }).join('');
   const w = warnings(edited);
   $('warnList').innerHTML = w.map((x) => `<li>${x}</li>`).join('');
@@ -1037,6 +1092,7 @@ $('confirmWrite').onclick = async () => {
     });
     const bad = [...Array(63).keys()].filter((i) => back[i] !== target[i]);
     original = back; edited = back.slice();
+    saveLast(back);
     $('reviewDlg').close();
     renderParams();
     renderTacho();

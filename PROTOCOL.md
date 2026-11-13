@@ -48,6 +48,10 @@ Schreibablauf der Original-App: `aa 21 00 01` → Antwort abwarten → Block in 
 |---|---|---|---|
 | 0 | Max. Batteriestrom (A) | **bestätigt** | 45 |
 | 1 | Max. Phasenstrom (A) | **bestätigt** | 120 |
+| 3 | Gasgriff Vollgas-Spannung „Full throttle voltage“: Rohwert ÷ 2450 → V | **sicher** (8453 = 3,45 V → 8698 = 3,55 V) | 8698 |
+| 4 | Gasgriff Leerlauf-Spannung „Idle throttle voltage“: Rohwert ÷ 2450 → V | **sicher** | 2450 = 1,00 V |
+| 5 | Sanftanlauf „Soft start time“: Rohwert × 15 ÷ 4096 → s | **sicher** | 240 = 0,88 s |
+| 6 | Sanftanlauf rückwärts (Reverse „Soft start time“): Rohwert × 15 ÷ 4096 → s | **sicher** | 999 = 3,66 s |
 | 7 | Tacho-Korrekturfaktor „One-line coefficient“ (%) | **sicher** | 100 → 137 |
 | 11 / 12 / 13 | Höchstdrehzahl H / M / L (rpm) | **sicher** | 750 / 600 / 400 |
 | 14–16 | Phasenstrom-% H/M/L | **bestätigt** | 100 / 75 / 50 |
@@ -55,7 +59,7 @@ Schreibablauf der Original-App: `aa 21 00 01` → Antwort abwarten → Block in 
 | 21 | Feldschwächung Stufe H (A) | **sicher** | 65 |
 | 22 | Bremsmoment beim Bremsen „Brake feedback torque“ (Nm) | **bestätigt** | 10 |
 | 23 | Rekuperationsstrom „Regenerative current“ (A) | **bestätigt** | 11 |
-| 45 | Bremsmoment beim Gas loslassen „Release throttle feedback torque“ (Nm) | vermutet (einziges weiteres Wort, das sich beim Speichern der EBS-Seite änderte) | 8 |
+| 45 | Bremsmoment beim Gas loslassen „Release throttle feedback torque“ (Nm) | **bestätigt** (0 schaltet die Motorbremse beim Gaswegnehmen ab) | 8 |
 | 24 | Mindestdrehzahl Rekuperation „Minimum feedback speed“ (rpm, Skalierung prüfen) | **bestätigt** | 10 |
 | 26 / 27 / 28 | Unterspannung / Leistungsreduzierung Beginn / Ende (V) | vermutet | 38 / 43 / 35 |
 | 34 | Polpaare | vermutet | 24 |
@@ -79,9 +83,16 @@ Schreibablauf der Original-App: `aa 21 00 01` → Antwort abwarten → Block in 
 „Sicher“ heißt: Im Mitschnitt wurde genau dieser Wert in der App geändert, und genau dieses Wort hat sich geändert.
 „Bestätigt“ heißt: vom Nutzer durch Ändern und Vergleich mit der Original-App geprüft. Die restlichen „vermutet“-Felder
 wurden ebenfalls stichprobenartig mit der Original-App verglichen und passten.
-Alle übrigen Wörter (2–6, 8–10, 20, 25, 29–33, 42, 46, 47, 52, 58, 61, 62) sind unbekannt. Wort 29 sieht nach einem
-Bitfeld aus (Schalter wie Diebstahlsperre/Seitenständer?). Wort 3 und 4 könnten Vollgas- und Leerlauf-Spannung des
-Gasgriffs sein (Rohwert ÷ 2450 → V, gleiche Skala wie live), z. B. 8698 → 3,55 V und 2450 → 1,00 V. Noch unbestätigt.
+Alle übrigen Wörter (2, 8–10, 20, 25, 29–33, 42, 46, 47, 52, 58, 61, 62) sind unbekannt. Wort 29 sieht nach einem
+Bitfeld aus (Schalter wie Diebstahlsperre/Seitenständer?).
+
+Noch nicht zugeordnet (Felder der Original-App): Riding mode, die Schalter unter „Startup Acceleration“ und „Park Mode“,
+Model selection, One-line-/BMS-Protokoll, Shift method, Default gear, Reverse speed/torque, Over-voltage,
+Battery series/capacity/type, Bergabfahrhilfe, Direction, Sensor type, Hall-/Encoder-Reihenfolge.
+
+**Zuordnen ohne Sniffen:** Die App merkt sich den zuletzt gelesenen Parameterblock. Ändert man in der Original-App
+genau einen Wert und liest danach in dieser App neu, zeigt sie unter „Seit dem letzten Lesen geändert“ die betroffenen
+Wörter mit alt → neu, Hex und geänderten Bits (auch im Log, Zeilen mit „Δ“).
 
 ## Live-Frame (64 Byte = 32 Wörter, vorzeichenbehaftet)
 

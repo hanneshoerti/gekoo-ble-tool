@@ -1,7 +1,7 @@
 // Spielt einen echten Mitschnitt (App ↔ Controller) durch das Protokoll-Modul.
 import { readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
-import { FrameParser, decodeRealtime, wordsFromBlock, checksumOk, buildWriteFrame, chunks } from '../gekoo.js';
+import { FrameParser, decodeRealtime, wordsFromBlock, checksumOk, buildWriteFrame, chunks, PARAMS, fmtUnit, fromUnit } from '../gekoo.js';
 
 const lines = readFileSync(new URL('./fixtures/session.txt', import.meta.url), 'utf8').trim().split('\n');
 const hex = (s) => Uint8Array.from(s.split(' ').map((h) => parseInt(h, 16)));
@@ -70,4 +70,19 @@ console.log('Beispiel H-Gang:', Object.fromEntries(Object.entries(h[0]).filter((
   assert.ok(p2.dropped > 2000, 'unvollständige Frames werden verworfen');
   assert.ok(live.every((d) => d.valid), 'alle echten Frames gelten als gültig');
   console.log('OK – Fehlerfall "nur erstes Stück":', p2.dropped, 'unvollständige Frames verworfen, 0 angezeigt');
+}
+
+// Skalierte Parameter: Werte aus dem Mitschnitt müssen exakt die Anzeige der Original-App ergeben
+{
+  const P = (i) => PARAMS.find((p) => p.i === i);
+  const first = blocks[0], last = blocks[blocks.length - 1];
+  assert.equal(fmtUnit(P(5), first[5]), '0.88', 'Sanftanlauf 0,88 s');
+  assert.equal(fmtUnit(P(6), first[6]), '3.66', 'Sanftanlauf rückwärts 3,66 s');
+  assert.equal(fmtUnit(P(3), first[3]), '3.45', 'Vollgas-Spannung zuerst 3,45 V');
+  assert.equal(fmtUnit(P(3), last[3]), '3.55', 'Vollgas-Spannung später 3,55 V');
+  assert.equal(fmtUnit(P(4), last[4]), '1.00', 'Leerlauf-Spannung 1,00 V');
+  assert.equal(fromUnit(P(3), 3.55), 8698); assert.equal(fromUnit(P(4), 1.0), 2450);
+  assert.equal(fromUnit(P(5), 1.0), 273);
+  assert.equal(fmtUnit(P(11), 750), '750', 'unskalierte Parameter bleiben ganze Zahlen');
+  console.log('OK – Skalierung Gasgriff/Sanftanlauf stimmt mit der Original-App überein');
 }

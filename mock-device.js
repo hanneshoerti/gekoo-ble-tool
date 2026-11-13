@@ -60,5 +60,8 @@ export function installMockBluetooth(win = window) {
   // Zum Testen: Verbindungsabbruch simulieren (z. B. Zündung aus)
   const simulateDisconnect = () => { device.gatt.connected = false; for (const fn of discListeners) fn({}); };
   win.__gekooMockDisconnect = simulateDisconnect;
+  // Zum Testen: Parameter „von außen“ ändern (wie durch die Original-App)
+  win.__gekooMockSet = (i, v) => { params[i] = v & 0xffff; };
+  win.__gekooMockGet = (i) => params[i];
   return { get params() { return params; }, simulateDisconnect };
 }
