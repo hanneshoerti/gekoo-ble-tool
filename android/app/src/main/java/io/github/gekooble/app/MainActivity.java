@@ -530,6 +530,15 @@ public class MainActivity extends Activity {
         public void disconnect() { main.post(MainActivity.this::disconnect); }
 
         @JavascriptInterface
+        public String appVersion() {
+            try {
+                return getPackageManager().getPackageInfo(getPackageName(), 0).versionName;
+            } catch (Exception e) {
+                return "";
+            }
+        }
+
+        @JavascriptInterface
         public String saveFile(String name, String text) {
             try {
                 return saveDownload(name, text);

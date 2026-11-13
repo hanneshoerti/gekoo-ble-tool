@@ -278,7 +278,8 @@
     </div>
     <div class="bar"><a id="demoLink" href="#demo"><button tabindex="-1">Demo-Modus starten</button></a></div>
     <div class="note" style="border-left-color:var(--line)">Quellcode, Protokoll-Beschreibung und Lizenz (MIT): siehe README im Projektordner.
-      Diese App ist ein inoffizielles Community-Projekt und hat nichts mit dem Hersteller zu tun.</div>
+      Diese App ist ein inoffizielles Community-Projekt und hat nichts mit dem Hersteller zu tun.
+      <span id="appVersion"></span></div>
   </section>
 
   <section id="tab-gps" hidden>
@@ -353,6 +354,9 @@ for (const k of ['autoConnect', 'autoReconnect']) {
   $(k).checked = !!settings[k];
   $(k).addEventListener('change', () => { settings[k] = $(k).checked; saveSettings(); });
 }
+
+// Version der Android-App anzeigen (im Browser gibt es keine)
+try { const v = window.GekooNative?.appVersion?.(); if (v) $('appVersion').textContent = `App-Version ${v}.`; } catch {}
 
 // Erster Start: auf fahrzeugabhängige Standardwerte hinweisen
 $('firstRun').hidden = settings.configured || location.hash === '#demo';

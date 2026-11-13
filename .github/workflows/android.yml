@@ -32,7 +32,14 @@ jobs:
 
       - name: APK bauen
         working-directory: android
-        run: ./gradlew --no-daemon assembleDebug
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          if [ -n "$RELEASE_TAG" ]; then
+            ./gradlew --no-daemon assembleDebug -PappVersion="$RELEASE_TAG"
+          else
+            ./gradlew --no-daemon assembleDebug
+          fi
 
       - name: APK umbenennen
         run: cp android/app/build/outputs/apk/debug/app-debug.apk gekoo-controller.apk
